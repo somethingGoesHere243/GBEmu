@@ -13,7 +13,7 @@ constexpr byte C_FLAG = 1 << 4; // carry flag
 class GBCPU {
 public:
 	// Memory connected to CPU
-	GBMemory mem;
+	GBMemory* mem;
 
 	// Flag to be set if the last processed OPCode was CB (the prefix code)
 	bool nextInstructionPrefixed = false;
@@ -24,32 +24,35 @@ public:
 	// IME should be set one instruction after EI is called
 	bool needToSetIME = 0;
 
-	// 8 8-bit registers
+	// 8 8-bit registers (Initial values given by CGB Boot ROM)
 	
 	// A and F form a pair
-	byte A = 0; // Accumulator
-	byte F = 0; // Flags
+	byte A = 17; // Accumulator
+	byte F = Z_FLAG; // Flags
 
 	// B and C form a pair
 	byte B = 0;
 	byte C = 0;
 
 	// D and E form a pair
-	byte D = 0;
-	byte E = 0;
+	byte D = 255;
+	byte E = 86;
 
 	// H and L form a pair
 	byte H = 0;
-	byte L = 0;
+	byte L = 13;
 
 	// 2 16-bit registers
 
-	address SP = 0; // Stack Pointer
+	address SP = 65534; // Stack Pointer
 
-	address PC = 0; // Program Counter
+	address PC = 0x100; // Program Counter
 
 	// Store how many CPU cycles should pass before next instruction is called
 	short cyclesRemaining = 0;
+
+	// Creates new CPU linked to the given memory
+	GBCPU(GBMemory* memory) :mem{ memory } {};
 
 	// Runs one CPU cycle
 	void update();

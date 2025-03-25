@@ -22,7 +22,7 @@ void initCPU(nlohmann::json& initialState, GBCPU& cpu) {
 
 	// Set given memory values
 	for (std::vector<int> memData : initialState["ram"]) {
-		cpu.mem.data[memData[0]] = memData[1];
+		cpu.mem->write(memData[0], memData[1]);
 	}
 }
 
@@ -89,7 +89,7 @@ bool checkCPU(std::string testName, nlohmann::json& finalState, GBCPU& cpu) {
 
 	// Check given memory values
 	for (std::vector<int> memData : finalState["ram"]) {
-		if (cpu.mem.data[memData[0]] != (byte)memData[1]) {
+		if (cpu.mem->read(memData[0]) != (byte)memData[1]) {
 			std::cout << "TEST: " << testName << " failed due to incorrect value stored in memory address " << memData[0] << std::endl;
 			return false;
 		}

@@ -51,9 +51,9 @@ void GBCPU::processUnprefixedOPCode(byte OPCode) {
 		loadReg16(addressToWriteTo);
 
 		// Write 8 least significant bits of SP to given address
-		mem.data[addressToWriteTo] = (byte)SP;
+		mem->write(addressToWriteTo, (byte)SP);
 		// Write 8 most significant bits of SP to next consecutive address
-		mem.data[addressToWriteTo + 1] = (byte)(SP >> 8);
+		mem->write(addressToWriteTo + 1, (byte)(SP >> 8));
 		cyclesRemaining += 2;
 
 		break;
@@ -653,7 +653,7 @@ void GBCPU::processUnprefixedOPCode(byte OPCode) {
 		pushToStack(B, C);
 		break;
 	case 198:
-		addToA(mem.data[PC]);
+		addToA(mem->read(PC));
 		++PC;
 		++cyclesRemaining;
 		break;
@@ -684,7 +684,7 @@ void GBCPU::processUnprefixedOPCode(byte OPCode) {
 		conditionalCall(addressToWriteTo, true);
 		break;
 	case 206:
-		addToAWithCarry(mem.data[PC]);
+		addToAWithCarry(mem->read(PC));
 		++PC;
 		++cyclesRemaining;
 		break;
@@ -710,7 +710,7 @@ void GBCPU::processUnprefixedOPCode(byte OPCode) {
 		pushToStack(D, E);
 		break;
 	case 214:
-		subtractFromA(mem.data[PC]);
+		subtractFromA(mem->read(PC));
 		++PC;
 		++cyclesRemaining;
 		break;
@@ -734,7 +734,7 @@ void GBCPU::processUnprefixedOPCode(byte OPCode) {
 		conditionalCall(addressToWriteTo, carryFlag);
 		break;
 	case 222:
-		subtractFromAWithCarry(mem.data[PC]);
+		subtractFromAWithCarry(mem->read(PC));
 		++PC;
 		++cyclesRemaining;
 		break;
@@ -743,7 +743,7 @@ void GBCPU::processUnprefixedOPCode(byte OPCode) {
 		++cyclesRemaining;
 		break;
 	case 224:
-		copyReg8(getHighMemory(mem.data[PC]), A);
+		copyReg8(getHighMemory(mem->read(PC)), A);
 		++PC;
 		++cyclesRemaining;
 		break;
@@ -757,7 +757,7 @@ void GBCPU::processUnprefixedOPCode(byte OPCode) {
 		pushToStack(H, L);
 		break;
 	case 230:
-		andA(mem.data[PC]);
+		andA(mem->read(PC));
 		++PC;
 		++cyclesRemaining;
 		break;
@@ -773,10 +773,10 @@ void GBCPU::processUnprefixedOPCode(byte OPCode) {
 		break;
 	case 234:
 		loadReg16(addressToWriteTo);
-		copyReg8(mem.data[addressToWriteTo], A);
+		copyReg8(mem->read(addressToWriteTo), A);
 		break;
 	case 238:
-		xorA(mem.data[PC]);
+		xorA(mem->read(PC));
 		++PC;
 		++cyclesRemaining;
 		break;
@@ -785,7 +785,7 @@ void GBCPU::processUnprefixedOPCode(byte OPCode) {
 		++cyclesRemaining;
 		break;
 	case 240:
-		copyReg8(A, getHighMemory(mem.data[PC]));
+		copyReg8(A, getHighMemory(mem->read(PC)));
 		++PC;
 		++cyclesRemaining;
 		break;
@@ -804,7 +804,7 @@ void GBCPU::processUnprefixedOPCode(byte OPCode) {
 		pushToStack(A, F);
 		break;
 	case 246:
-		orA(mem.data[PC]);
+		orA(mem->read(PC));
 		++PC;
 		++cyclesRemaining;
 		break;
@@ -821,13 +821,13 @@ void GBCPU::processUnprefixedOPCode(byte OPCode) {
 		break;
 	case 250:
 		loadReg16(addressToWriteTo);
-		copyReg8(A, mem.data[addressToWriteTo]);
+		copyReg8(A, mem->read(addressToWriteTo));
 		break;
 	case 251:
 		EI();
 		break;
 	case 254:
-		compareA(mem.data[PC]);
+		compareA(mem->read(PC));
 		++PC;
 		++cyclesRemaining;
 		break;

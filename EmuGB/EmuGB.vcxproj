@@ -71,16 +71,20 @@
   </ImportGroup>
   <PropertyGroup Label="UserMacros" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
-    <IncludePath>C:\Users\numbe\Documents\C++\ThirdParty\Include;$(IncludePath)</IncludePath>
+    <IncludePath>C:\Users\numbe\Documents\C++\EmuGB\EmuGB\EmuGB\include;$(IncludePath)</IncludePath>
+    <LibraryPath>C:\Users\numbe\Documents\C++\EmuGB\EmuGB\EmuGB\libs;$(LibraryPath)</LibraryPath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
-    <IncludePath>C:\Users\numbe\Documents\C++\ThirdParty\Include;$(IncludePath)</IncludePath>
+    <IncludePath>C:\Users\numbe\Documents\C++\EmuGB\EmuGB\EmuGB\include;$(IncludePath)</IncludePath>
+    <LibraryPath>C:\Users\numbe\Documents\C++\EmuGB\EmuGB\EmuGB\libs;$(LibraryPath)</LibraryPath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
-    <IncludePath>C:\Users\numbe\Documents\C++\ThirdParty\Include;$(IncludePath)</IncludePath>
+    <IncludePath>C:\Users\numbe\Documents\C++\EmuGB\EmuGB\EmuGB\include;$(IncludePath)</IncludePath>
+    <LibraryPath>C:\Users\numbe\Documents\C++\EmuGB\EmuGB\EmuGB\libs;$(LibraryPath)</LibraryPath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
-    <IncludePath>C:\Users\numbe\Documents\C++\ThirdParty\Include;$(IncludePath)</IncludePath>
+    <IncludePath>C:\Users\numbe\Documents\C++\EmuGB\EmuGB\EmuGB\include;$(IncludePath)</IncludePath>
+    <LibraryPath>C:\Users\numbe\Documents\C++\EmuGB\EmuGB\EmuGB\libs;$(LibraryPath)</LibraryPath>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <ClCompile>
@@ -93,6 +97,7 @@
     <Link>
       <SubSystem>Console</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
+      <AdditionalDependencies>SDL3.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
@@ -110,6 +115,7 @@
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
       <GenerateDebugInformation>true</GenerateDebugInformation>
+      <AdditionalDependencies>SDL3.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
@@ -123,6 +129,7 @@
     <Link>
       <SubSystem>Console</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
+      <AdditionalDependencies>SDL3.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
@@ -140,6 +147,7 @@
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
       <GenerateDebugInformation>true</GenerateDebugInformation>
+      <AdditionalDependencies>SDL3.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
@@ -147,13 +155,21 @@
     <ClCompile Include="src\CPU\CPUTests.cpp" />
     <ClCompile Include="src\CPU\prefixedOPCodes.cpp" />
     <ClCompile Include="src\CPU\unprefixedOPCodes.cpp" />
+    <ClCompile Include="src\GB.cpp" />
     <ClCompile Include="src\Main.cpp" />
     <ClCompile Include="src\Memory.cpp" />
+    <ClCompile Include="src\PPU\FIFO.cpp" />
+    <ClCompile Include="src\PPU\PPU.cpp" />
+    <ClCompile Include="src\PPU\Screen.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="src\CPU\CPU.h" />
     <ClInclude Include="src\CPU\CPUTests.h" />
+    <ClInclude Include="src\GB.h" />
     <ClInclude Include="src\Memory.h" />
+    <ClInclude Include="src\PPU\FIFO.h" />
+    <ClInclude Include="src\PPU\PPU.h" />
+    <ClInclude Include="src\PPU\Screen.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

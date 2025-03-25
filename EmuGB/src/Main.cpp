@@ -1,17 +1,35 @@
 #include "Memory.h"
 #include "CPU/CPU.h"
 #include "CPU/CPUTests.h"
+#include "GB.h"
 
 #include <iostream>
 #include <vector>
+#include <windows.h>
 
 int main() {
-	GBCPU* testCPU = new GBCPU;
+	GB* testGB = new GB;
 
-	int totalPassedTests = 0;
+	// testGB->runTests();
+	
+	testGB->init();
 
-	totalPassedTests += testUnprefixedCodes(testCPU);
-	totalPassedTests += testPrefixedCodes(testCPU);
+	// Keep Window open until closed
+	SDL_Event e;
+	bool quit = false;
+	while (!quit) {
+		// Check if program closed
+		while (SDL_PollEvent(&e)) {
+			if (e.type == SDL_EVENT_QUIT) {
+				quit = true;
+			}
+		}
 
-	std::cout << "TOTAL TESTS PASSED: " << totalPassedTests << std::endl;
+		for (int i = 0; i < 17556; ++i) {
+			testGB->update();
+		}
+		Sleep(50);
+	}
+
+	
 }

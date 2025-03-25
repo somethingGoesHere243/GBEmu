@@ -65,7 +65,7 @@ byte& GBCPU::getBCMemory() {
 	address BC = (B << 8) + C;
 	++cyclesRemaining;
 
-	return mem.data[BC];
+	return mem->read(BC);
 }
 
 byte& GBCPU::getDEMemory() {
@@ -73,7 +73,7 @@ byte& GBCPU::getDEMemory() {
 	address DE = (D << 8) + E;
 	++cyclesRemaining;
 
-	return mem.data[DE];
+	return mem->read(DE);
 }
 
 byte& GBCPU::getHLMemory() {
@@ -81,7 +81,7 @@ byte& GBCPU::getHLMemory() {
 	address HL = (H << 8) + L;
 	++cyclesRemaining;
 
-	return mem.data[HL];
+	return mem->read(HL);
 }
 
 byte& GBCPU::getHighMemory(byte& reg) {
@@ -91,7 +91,7 @@ byte& GBCPU::getHighMemory(byte& reg) {
 
 	++cyclesRemaining;
 
-	return mem.data[target];
+	return mem->read(target);
 }
 
 void GBCPU::copyReg8(byte& destReg, byte& sourceReg) {
@@ -100,7 +100,7 @@ void GBCPU::copyReg8(byte& destReg, byte& sourceReg) {
 }
 
 void GBCPU::loadReg8(byte& destReg) {
-	destReg = mem.data[PC];
+	destReg = mem->read(PC);
 
 	// Increment PC and increase cycle count
 	++PC;
@@ -109,11 +109,11 @@ void GBCPU::loadReg8(byte& destReg) {
 
 void GBCPU::loadReg16(address& destReg) {
 	// Retrieve first value from the program counter
-	byte val1 = mem.data[PC];
+	byte val1 = mem->read(PC);
 	++PC;
 
 	// Retrieve second value from program counter
-	byte val2 = mem.data[PC];
+	byte val2 = mem->read(PC);
 	++PC;
 
 	// Combine 2 values into destReg
@@ -159,7 +159,7 @@ void GBCPU::addToHL(address& sourceReg) {
 }
 
 void GBCPU::addToSP() {
-	int change = mem.data[PC];
+	int change = mem->read(PC);
 	++PC;
 
 	// Change needs to be a signed value (i.e its negative if most sig. bit is 1)
@@ -183,7 +183,7 @@ void GBCPU::addToSP() {
 }
 
 void GBCPU::loadHLWithEditedSP() {
-	int change = mem.data[PC];
+	int change = mem->read(PC);
 	++PC;
 
 	// Change needs to be a signed value (i.e its negative if most sig. bit is 1)
@@ -217,7 +217,7 @@ void GBCPU::relJump(bool condition) {
 		return;
 	}
 	// Get offset which needs to be applied to PC
-	byte offset = mem.data[PC];
+	byte offset = mem->read(PC);
 	PC++;
 
 	// offset should now be treated as a signed integer
@@ -550,9 +550,9 @@ void GBCPU::compareA(byte& reg) {
 }
 
 void GBCPU::fillFromStack(byte& reg1, byte& reg2) {
-	reg2 = mem.data[SP];
+	reg2 = mem->read(SP);
 	++SP;
-	reg1 = mem.data[SP];
+	reg1 = mem->read(SP);
 	++SP;
 
 	cyclesRemaining += 3;
@@ -561,10 +561,10 @@ void GBCPU::fillFromStack(byte& reg1, byte& reg2) {
 void GBCPU::pushToStack(byte& reg1, byte& reg2) {
 	// Decrement stack pointer before pushing new register into its new location
 	--SP;
-	mem.data[SP] = reg1;
+	mem->write(SP, reg1);
 
 	--SP;
-	mem.data[SP] = reg2;
+	mem->write(SP, reg2);
 
 	cyclesRemaining += 4;
 }
@@ -586,11 +586,11 @@ void GBCPU::conditionalCall(address addr, bool condition) {
 
 void GBCPU::ret() {
 	// Get least sig 8 bits of PC from the stack
-	byte leastSigBits = mem.data[SP];
+	byte leastSigBits = mem->read(SP);
 	++SP;
 
 	// Combine with next byte from stack to get new PC value
-	PC = (mem.data[SP] << 8) + leastSigBits;
+	PC = (mem->read(SP) << 8) + leastSigBits;
 	++SP;
 
 	cyclesRemaining += 4;
@@ -632,7 +632,7 @@ void GBCPU::update() {
 			needToSetIME = 0;
 		}
 
-		byte opCode = mem.data[PC];
+		byte opCode = mem->read(PC);
 
 		// Check if need to process a prefixed OPCode
 		if (nextInstructionPrefixed) {

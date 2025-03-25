@@ -19,6 +19,12 @@
     <Filter Include="Header Files\CPU">
       <UniqueIdentifier>{8375b603-314a-491c-9ceb-5dd209cb32a3}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Header Files\PPU">
+      <UniqueIdentifier>{d2f0b168-9df0-4af8-ab0c-c3b2402a14a0}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\PPU">
+      <UniqueIdentifier>{3d37681e-86bc-4a34-b0b3-5dc7c19a3f1e}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\Main.cpp">
@@ -39,6 +45,18 @@
     <ClCompile Include="src\CPU\unprefixedOPCodes.cpp">
       <Filter>Source Files\CPU</Filter>
     </ClCompile>
+    <ClCompile Include="src\PPU\PPU.cpp">
+      <Filter>Source Files\PPU</Filter>
+    </ClCompile>
+    <ClCompile Include="src\PPU\Screen.cpp">
+      <Filter>Source Files\PPU</Filter>
+    </ClCompile>
+    <ClCompile Include="src\GB.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\PPU\FIFO.cpp">
+      <Filter>Source Files\PPU</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="src\Memory.h">
@@ -49,6 +67,18 @@
     </ClInclude>
     <ClInclude Include="src\CPU\CPUTests.h">
       <Filter>Header Files\CPU</Filter>
+    </ClInclude>
+    <ClInclude Include="src\PPU\PPU.h">
+      <Filter>Header Files\PPU</Filter>
+    </ClInclude>
+    <ClInclude Include="src\PPU\Screen.h">
+      <Filter>Header Files\PPU</Filter>
+    </ClInclude>
+    <ClInclude Include="src\GB.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\PPU\FIFO.h">
+      <Filter>Header Files\PPU</Filter>
     </ClInclude>
   </ItemGroup>
 </Project>
