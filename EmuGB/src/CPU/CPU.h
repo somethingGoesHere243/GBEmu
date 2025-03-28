@@ -15,38 +15,52 @@ public:
 	// Memory connected to CPU
 	GBMemory* mem;
 
+	// Current OPCode being processed
+	int OPCode = 0;
+
 	// Flag to be set if the last processed OPCode was CB (the prefix code)
 	bool nextInstructionPrefixed = false;
+
+	// To be used if an opcode needs to have its implementation split over multiple cycles/steps
+	int OPCodeStep = 0;
+
+	// Temp variables to store byte/address between OPCode steps
+	byte* tempBytePtr = nullptr;
+	byte tempByte = 0;
+	address tempAddress = 0;
+
+	// Flag set when HALT OPCode is processed. Unset when an interrupt is pending
+	bool isHalted = 0;
 
 	// Interrupt Master Enable (IME) Flag
 	bool IME = 0;
 
 	// IME should be set one instruction after EI is called
-	bool needToSetIME = 0;
+	int instructionsBeforeIMESet = 0;
 
 	// 8 8-bit registers (Initial values given by CGB Boot ROM)
 	
 	// A and F form a pair
-	byte A = 17; // Accumulator
-	byte F = Z_FLAG; // Flags
+	byte A = 0x01; // Accumulator
+	byte F = Z_FLAG | H_FLAG | C_FLAG; // Flags
 
 	// B and C form a pair
 	byte B = 0;
-	byte C = 0;
+	byte C = 0x13;
 
 	// D and E form a pair
-	byte D = 255;
-	byte E = 86;
+	byte D = 0;
+	byte E = 0xD8;
 
 	// H and L form a pair
-	byte H = 0;
-	byte L = 13;
+	byte H = 0x01;
+	byte L = 0x4D;
 
 	// 2 16-bit registers
 
-	address SP = 65534; // Stack Pointer
+	address SP = 0xFFFE; // Stack Pointer
 
-	address PC = 0x100; // Program Counter
+	address PC = 0x0100; // Program Counter
 
 	// Store how many CPU cycles should pass before next instruction is called
 	short cyclesRemaining = 0;
@@ -54,14 +68,19 @@ public:
 	// Creates new CPU linked to the given memory
 	GBCPU(GBMemory* memory) :mem{ memory } {};
 
+	// Sets bits 0, 1, 2, and 3 of the F register back to 0 (These bits should be unused)
+	void fixFRegister();
+
 	// Runs one CPU cycle
 	void update();
 
 	// Process OPCode obtained from memory via PC
 	// Also updates cyclesRemaining with expected number of cycles to run specific OPCode
-	void processUnprefixedOPCode(byte OPCode);
+	void processUnprefixedOPCode();
 
-	void processPrefixedOPCode(byte OPCode); // Process codes which were preceded by the CB OPCode
+	void processPrefixedOPCode(); // Process codes which were preceded by the CB OPCode
+
+	void processLaterStep(); // Process OPCodes whose implementation must be split into multiple steps
 
 	// Enables interrupt flag upon next instruction call
 	void EI();

@@ -16,12 +16,12 @@ private:
 	SDL_Surface* mSurface{ nullptr };
 
 	// Screen Dimensions (Gameboy is 160 x 144 pixels)
-	int mWidth{ 160 };
-	int mHeight{ 144 };
+	int mWidth;
+	int mHeight;
 
 public:
 	// Constructor to set up all member variables and initialise SDL
-	Screen(int scale);
+	Screen(int width, int height, int scale, const char* windowName);
 
 	// Deallocate memory
 	~Screen();

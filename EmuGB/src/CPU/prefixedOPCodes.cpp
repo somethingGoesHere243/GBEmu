@@ -2,43 +2,59 @@
 
 #include <iostream>
 
-void GBCPU::processPrefixedOPCode(byte OPCode) {
-	// Increment program counter
-	++PC;
-	
-	// Register affected by OPCode is determined by 3 least sig. bits of OPCode
-	byte* regPtr{ &A };
-	byte threeLeastSigBits = OPCode & 7;
-	switch (threeLeastSigBits) {
-	case 0:
-		regPtr = &B;
-		break;
-	case 1:
-		regPtr = &C;
-		break;
-	case 2:
-		regPtr = &D;
-		break;
-	case 3:
-		regPtr = &E;
-		break;
-	case 4:
-		regPtr = &H;
-		break;
-	case 5:
-		regPtr = &L;
-		break;
-	case 6:
-		regPtr = &getHLMemory();
-		++cyclesRemaining;
-		break;
-	case 7:
-		regPtr = &A;
-		break;
-	}
-
+void GBCPU::processPrefixedOPCode() {
 	// 5 most sig. bits of OPCode determine operation to perform on reg
 	byte fiveMostSigBits = (OPCode >> 3) & 31;
+
+	// Register affected by OPCode is determined by 3 least sig. bits of OPCode
+	byte threeLeastSigBits = OPCode & 7;
+	byte* regPtr{ &A };
+	// If working with HL register OPCode must be split into 2 steps
+	if (OPCodeStep == 0) {
+		// Increment program counter
+		++PC;
+
+		switch (threeLeastSigBits) {
+		case 0:
+			regPtr = &B;
+			break;
+		case 1:
+			regPtr = &C;
+			break;
+		case 2:
+			regPtr = &D;
+			break;
+		case 3:
+			regPtr = &E;
+			break;
+		case 4:
+			regPtr = &H;
+			break;
+		case 5:
+			regPtr = &L;
+			break;
+		case 6:
+			// If executing a testBit OPCode then operation still performed in 1 step
+			if ((fiveMostSigBits >= 8) && (fiveMostSigBits <= 15)) {
+				regPtr = &(getHLMemory());
+			}
+			else {
+				// Need 2 steps for OPCode
+				OPCodeStep = 1;
+				++cyclesRemaining;
+				// Return early so that OPCode can be performed in 2 steps
+				return;
+			}
+			break;
+		case 7:
+			regPtr = &A;
+			break;
+		}
+	}
+	else {
+		regPtr = &(getHLMemory());
+		OPCodeStep = 0;
+	}
 
 	switch (fiveMostSigBits) {
 	case 0:
@@ -67,43 +83,27 @@ void GBCPU::processPrefixedOPCode(byte OPCode) {
 		break;
 	case 8:
 		testBit(*regPtr, 0);
-		// Need one less cycle for (HL) register here
-		if (threeLeastSigBits == 6) { --cyclesRemaining; };
 		break;
 	case 9:
 		testBit(*regPtr, 1);
-		// Need one less cycle for (HL) register here
-		if (threeLeastSigBits == 6) { --cyclesRemaining; };
 		break;
 	case 10:
 		testBit(*regPtr, 2);
-		// Need one less cycle for (HL) register here
-		if (threeLeastSigBits == 6) { --cyclesRemaining; };
 		break;
 	case 11:
 		testBit(*regPtr, 3);
-		// Need one less cycle for (HL) register here
-		if (threeLeastSigBits == 6) { --cyclesRemaining; };
 		break;
 	case 12:
 		testBit(*regPtr, 4);
-		// Need one less cycle for (HL) register here
-		if (threeLeastSigBits == 6) { --cyclesRemaining; };
 		break;
 	case 13:
 		testBit(*regPtr, 5);
-		// Need one less cycle for (HL) register here
-		if (threeLeastSigBits == 6) { --cyclesRemaining; };
 		break;
 	case 14:
 		testBit(*regPtr, 6);
-		// Need one less cycle for (HL) register here
-		if (threeLeastSigBits == 6) { --cyclesRemaining; };
 		break;
 	case 15:
 		testBit(*regPtr, 7);
-		// Need one less cycle for (HL) register here
-		if (threeLeastSigBits == 6) { --cyclesRemaining; };
 		break;
 	case 16:
 		setBit(*regPtr, 0, 0);
@@ -154,4 +154,6 @@ void GBCPU::processPrefixedOPCode(byte OPCode) {
 		setBit(*regPtr, 7, 1);
 		break;
 	}
+
+	nextInstructionPrefixed = false;
 }

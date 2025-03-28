@@ -25,6 +25,12 @@
     <Filter Include="Source Files\PPU">
       <UniqueIdentifier>{3d37681e-86bc-4a34-b0b3-5dc7c19a3f1e}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Header Files\Debug">
+      <UniqueIdentifier>{60560ef5-1e2f-4e3a-b2ad-1ba56cddf753}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\Debug">
+      <UniqueIdentifier>{2e46b06d-fe03-49ab-88b6-5747906be193}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\Main.cpp">
@@ -57,6 +63,21 @@
     <ClCompile Include="src\PPU\FIFO.cpp">
       <Filter>Source Files\PPU</Filter>
     </ClCompile>
+    <ClCompile Include="src\InterruptHandler.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Timer.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\CPU\multiStepOPCodes.cpp">
+      <Filter>Source Files\CPU</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Debug\TileMap.cpp">
+      <Filter>Source Files\Debug</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Input.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="src\Memory.h">
@@ -79,6 +100,18 @@
     </ClInclude>
     <ClInclude Include="src\PPU\FIFO.h">
       <Filter>Header Files\PPU</Filter>
+    </ClInclude>
+    <ClInclude Include="src\InterruptHandler.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Timer.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Debug\TileMap.h">
+      <Filter>Header Files\Debug</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Input.h">
+      <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
 </Project>

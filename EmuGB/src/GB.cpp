@@ -1,13 +1,27 @@
 #include "GB.h"
 #include "CPU/CPUTests.h"
 
-void GB::update() { 
+void GB::update(TileMap* tileMap) { 
+	// Update inputs
+	controller.update(&Mem);
+
+	// Check for interrupts
+	interruptHandler.update();
+
 	// PPU updates 4 times for each CPU Update
+	PPU.update(tileMap);
+	timer.update();
+
+	PPU.update(tileMap);
+	timer.update();
+
+	PPU.update(tileMap);
+	timer.update();
+
+	PPU.update(tileMap);
+	timer.update();
+
 	CPU.update();
-	PPU.update();
-	PPU.update();
-	PPU.update();
-	PPU.update();
 }
 
 void GB::runTests() {

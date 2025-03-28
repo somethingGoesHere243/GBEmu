@@ -3,7 +3,7 @@
 
 #include "Screen.h"
 
-Screen::Screen(int scale) {
+Screen::Screen(int width, int height, int scale, const char* windowName) : mWidth{ width }, mHeight{ height } {
 
 	// Attempt to initialize SDL
 	if (SDL_Init(SDL_INIT_VIDEO) < 0) {
@@ -12,7 +12,7 @@ Screen::Screen(int scale) {
 	}
 
 	// Create window (of given dimensions) and renderer
-	if (!SDL_CreateWindowAndRenderer("GBEmu", mWidth * scale, mHeight * scale, 0, &mWindow, &mRenderer)) {
+	if (!SDL_CreateWindowAndRenderer(windowName, width * scale, height * scale, 0, &mWindow, &mRenderer)) {
 		std::cout << "Renderer could not be created. SDL Error: " << SDL_GetError() << std::endl;
 		return;
 	}
@@ -72,7 +72,6 @@ void Screen::loadFromSurface() {
 		SDL_DestroyTexture(mTexture);
 		mTexture = nullptr;
 	}
-
 	// Create texture from surface pixels
 	mTexture = SDL_CreateTextureFromSurface(mRenderer, mSurface);
 
@@ -86,9 +85,6 @@ void Screen::loadFromSurface() {
 }
 
 void Screen::render() {
-	// Clear window
-	SDL_RenderClear(mRenderer);
-
 	// Set rendering space
 	SDL_FRect renderQuad{ 0, 0, mWidth, mHeight };
 
@@ -106,7 +102,6 @@ void Screen::editPixel(int pixelIndex, Uint8 r, Uint8 g, Uint8 b) {
 
 	// Generate data to overwrite old pixel data
 	Uint32 newPixel = SDL_MapSurfaceRGBA(mSurface, r, g, b, 255);
-
 	constexpr int bytesPerPixel = 4;
 
 	// Replace old pixel data

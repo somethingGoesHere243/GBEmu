@@ -3,7 +3,7 @@
 #include <iostream>
 
 void GBCPU::EI() { 
-	needToSetIME = 1;
+	instructionsBeforeIMESet = 2;
 	++cyclesRemaining;
 }
 
@@ -18,6 +18,7 @@ void GBCPU::incReg16(byte& reg1, byte& reg2) {
 	if (reg2 == 0) {
 		++reg1;
 	}
+	++cyclesRemaining;
 }
 
 void GBCPU::decReg16(byte& reg1, byte& reg2) {
@@ -26,6 +27,7 @@ void GBCPU::decReg16(byte& reg1, byte& reg2) {
 		--reg1;
 	}
 	--reg2;
+	++cyclesRemaining;
 }
 
 void GBCPU::decReg8(byte& reg) {
@@ -579,7 +581,6 @@ void GBCPU::conditionalCall(address addr, bool condition) {
 	byte leastSigBitsPC = PC;
 
 	pushToStack(mostSigBitsPC, leastSigBitsPC);
-	
 	PC = addr;
 	cyclesRemaining -= 1;
 }
@@ -623,28 +624,56 @@ void GBCPU::setBit(byte& reg, int bitNum, bool bitValue) {
 	++cyclesRemaining;
 }
 
+void GBCPU::fixFRegister() {
+	F = F & (Z_FLAG | N_FLAG | H_FLAG | C_FLAG);
+}
+
 void GBCPU::update() {
-	// Check if enough cycles have passes to begin next instruction
+	// Check if enough cycles have passed to begin next instruction
 	if (cyclesRemaining == 0) {
-		// Check if IME flag needs to be set
-		if (needToSetIME) {
-			IME = 1;
-			needToSetIME = 0;
+		// Check if CPU is halted
+		if (isHalted) {
+			// Resume execution if an interrupt is pending
+			byte IF = mem->read(0xFF0F);
+			byte IE = mem->read(0xFFFF);
+			if ((IF & IE) != 0) {
+				// Interrupt is pending so resume CPU on next cycle
+				isHalted = false;
+			}
+			return;
 		}
 
-		byte opCode = mem->read(PC);
+		// Check if IME flag needs to be set
+		if (instructionsBeforeIMESet > 0) {
+			--instructionsBeforeIMESet;
+			if (instructionsBeforeIMESet == 0) {
+				IME = 1;
+			}
+		}
 
-		// Check if need to process a prefixed OPCode
-		if (nextInstructionPrefixed) {
-			nextInstructionPrefixed = false;
-			processPrefixedOPCode(opCode);
+		// Check if partway thru processing of an OPCode
+		if (OPCodeStep > 0) {
+			if (nextInstructionPrefixed) {
+				processPrefixedOPCode();
+			} else {
+				processLaterStep();
+			}
 		}
 		else {
-			// Process an unprefixed OPCode
-			processUnprefixedOPCode(opCode);
+			// Get a new OPCode
+			OPCode = mem->read(PC);
+			
+			// Check if need to process a prefixed OPCode
+			if (nextInstructionPrefixed) {
+				processPrefixedOPCode();
+			}
+			else {
+				// Process an unprefixed OPCode
+				processUnprefixedOPCode();
+			}
 		}
 	}
-
+	fixFRegister();
 	// One cycle passes on each update
 	--cyclesRemaining;
 }

@@ -153,23 +153,32 @@
   <ItemGroup>
     <ClCompile Include="src\CPU\CPU.cpp" />
     <ClCompile Include="src\CPU\CPUTests.cpp" />
+    <ClCompile Include="src\CPU\multiStepOPCodes.cpp" />
     <ClCompile Include="src\CPU\prefixedOPCodes.cpp" />
     <ClCompile Include="src\CPU\unprefixedOPCodes.cpp" />
+    <ClCompile Include="src\Debug\TileMap.cpp" />
     <ClCompile Include="src\GB.cpp" />
+    <ClCompile Include="src\Input.cpp" />
+    <ClCompile Include="src\InterruptHandler.cpp" />
     <ClCompile Include="src\Main.cpp" />
     <ClCompile Include="src\Memory.cpp" />
     <ClCompile Include="src\PPU\FIFO.cpp" />
     <ClCompile Include="src\PPU\PPU.cpp" />
     <ClCompile Include="src\PPU\Screen.cpp" />
+    <ClCompile Include="src\Timer.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="src\CPU\CPU.h" />
     <ClInclude Include="src\CPU\CPUTests.h" />
+    <ClInclude Include="src\Debug\TileMap.h" />
     <ClInclude Include="src\GB.h" />
+    <ClInclude Include="src\Input.h" />
+    <ClInclude Include="src\InterruptHandler.h" />
     <ClInclude Include="src\Memory.h" />
     <ClInclude Include="src\PPU\FIFO.h" />
     <ClInclude Include="src\PPU\PPU.h" />
     <ClInclude Include="src\PPU\Screen.h" />
+    <ClInclude Include="src\Timer.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

@@ -6,7 +6,7 @@ void GBMemory::init() {
 	// All Addresses written to here are of the form $FF00 + some byte
 	address baseAddress = 0xFF00; // $FF00
 
-	data[baseAddress] = 0xCF;
+	data[baseAddress] = 0x3F;
 	data[baseAddress + 0x02] = 0x7E;
 	data[baseAddress + 0x04] = 0x18;
 	data[baseAddress + 0x07] = 0xF8;
@@ -36,6 +36,7 @@ void GBMemory::init() {
 	data[baseAddress + 0x47] = 0xFC;
 	data[baseAddress + 0x4D] = 0x7E;
 	data[baseAddress + 0x4F] = 0xFE;
+	data[baseAddress + 0x50] = 0xFF;
 	data[baseAddress + 0x51] = 0xFF;
 	data[baseAddress + 0x52] = 0xFF;
 	data[baseAddress + 0x53] = 0xFF;
@@ -63,7 +64,6 @@ void GBMemory::loadROM(std::string filePath) {
 		data[currAddress] = c;
 		++currAddress;
 	}
-
 	fileStream.close();
 
 	// TODO Add MBC functionality
@@ -93,8 +93,15 @@ bool GBMemory::isAccessible(address addr) {
 // TODO: Work out correct CPU and PPU timings to allow for locking off of memory at certain times
 
 byte& GBMemory::read(address addr) {
-	if (true || isAccessible(addr)) {
+	if (isAccessible(addr)) {
 		// Memory is accessible
+
+		// If reading an address which shouldnt be overwritten dont return reference to the register
+		if (addr < 0x8000 || addr == 0xFF44) {
+			garbageVal = data[addr];
+			return garbageVal;
+		}
+
 		return data[addr];
 	}
 	// Else return garbage value
@@ -106,8 +113,19 @@ byte& GBMemory::PPURead(address addr) {
 }
 
 void GBMemory::write(address addr, byte newVal) {
-	if (true || isAccessible(addr)) {
+	// Attempting to write to LY register should be ignored
+	if (addr == 0xFF44) { return; }
+
+	// Attempting to overwrite ROM from the cartridge should be ignored
+	if (addr < 0x8000) { return; }
+
+	if (isAccessible(addr)) {
 		// Memory is accessible
 		data[addr] = newVal;
+
+		// Any attempt to write to the DIV register resets its value to 0
+		if (addr == 0xFF04) {
+			data[addr] = 0;
+		}
 	}
 }

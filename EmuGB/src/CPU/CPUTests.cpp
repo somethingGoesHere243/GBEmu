@@ -1,12 +1,16 @@
 #include "CPUTests.h"
 
 void initCPU(nlohmann::json& initialState, GBCPU& cpu) {
-	// Set prefix flag
+	// Reset CPU internal state
+	cpu.OPCode = 0;
+	cpu.OPCodeStep = 0;
 	cpu.nextInstructionPrefixed = false;
-
-	// Set IME
 	cpu.IME = (int)initialState["ime"];
-	cpu.needToSetIME = 0;
+	cpu.instructionsBeforeIMESet = 0;
+
+	cpu.tempBytePtr = nullptr;
+	cpu.tempByte = 0;
+	cpu.tempAddress = 0;
 
 	// Set CPU registers as specified
 	cpu.A = initialState["a"];

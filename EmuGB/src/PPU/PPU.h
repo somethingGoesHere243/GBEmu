@@ -3,6 +3,8 @@
 #include "Screen.h"
 #include "FIFO.h"
 
+#include "../Debug/TileMap.h"
+
 using byte = uint8_t;
 using address = unsigned short;
 
@@ -23,6 +25,12 @@ private:
 
 	// Number of dots for PPU to remain idle following certain actions
 	int dotsToIdle{ 0 };
+
+	// Store whether a STAT interrupt is currently being requested
+	bool isSTATInterrupt{ false };
+
+	// Check if PPU was just turned back on
+	bool justTurnedOn{ false };
 
 	// LCD Control Bits: address FF40 in memory
 	byte& LCDC;
@@ -52,7 +60,8 @@ public:
 	void setTile();
 
 	// Sets tile data in FIFO's from current tile
-	void setTileData();
+	void setTileDataLow();
+	void setTileDataHigh();
 
 	// Push 8 pixels from tile data into FIFO (returns false if pixels failed to be pushed)
 	bool pushPixels();
@@ -60,7 +69,7 @@ public:
 	// Draws pixel (popped from FIFO) to screen
 	void drawPixel();
 
-	void update();
+	void update(TileMap* tilemap);
 
 	GBMemory* getMem() { return mem; }
 };

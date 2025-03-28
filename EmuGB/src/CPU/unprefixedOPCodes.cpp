@@ -1,8 +1,12 @@
 #include "CPU.h"
 
-void GBCPU::processUnprefixedOPCode(byte OPCode) {
+void GBCPU::processUnprefixedOPCode() {
 	// Increment Program Counter
 	++PC;
+
+	// Interrupt flags for use in HALT OPCode (118)
+	byte IF = mem->read(0xFF0F);
+	byte IE = mem->read(0xFFFF);
 
 	// Gather individual flags from F register
 	bool zeroFlag = F & Z_FLAG;
@@ -12,10 +16,6 @@ void GBCPU::processUnprefixedOPCode(byte OPCode) {
 	address BC = (B << 8) + C;
 	address DE = (D << 8) + E;
 	address HL = (H << 8) + L;
-
-	// Temporary address variable
-	address addressToWriteTo{ 0 };
-
 	switch (OPCode) {
 	case 0:
 		// No operation
@@ -31,7 +31,7 @@ void GBCPU::processUnprefixedOPCode(byte OPCode) {
 		break;
 	case 3:
 		incReg16(B, C);
-		cyclesRemaining += 2;
+		++cyclesRemaining;
 		break;
 	case 4:
 		incReg8(B);
@@ -48,12 +48,12 @@ void GBCPU::processUnprefixedOPCode(byte OPCode) {
 		F = F & (N_FLAG | H_FLAG | C_FLAG); 
 		break;
 	case 8:
-		loadReg16(addressToWriteTo);
+		loadReg16(tempAddress);
 
 		// Write 8 least significant bits of SP to given address
-		mem->write(addressToWriteTo, (byte)SP);
+		mem->write(tempAddress, (byte)SP);
 		// Write 8 most significant bits of SP to next consecutive address
-		mem->write(addressToWriteTo + 1, (byte)(SP >> 8));
+		mem->write(tempAddress + 1, (byte)(SP >> 8));
 		cyclesRemaining += 2;
 
 		break;
@@ -65,7 +65,7 @@ void GBCPU::processUnprefixedOPCode(byte OPCode) {
 		break;
 	case 11:
 		decReg16(B, C);
-		cyclesRemaining += 2;
+		++cyclesRemaining;
 		break;
 	case 12:
 		incReg8(C);
@@ -95,7 +95,7 @@ void GBCPU::processUnprefixedOPCode(byte OPCode) {
 		break;
 	case 19:
 		incReg16(D, E);
-		cyclesRemaining += 2;
+		++cyclesRemaining;
 		break;
 	case 20:
 		incReg8(D);
@@ -122,7 +122,7 @@ void GBCPU::processUnprefixedOPCode(byte OPCode) {
 		break;
 	case 27:
 		decReg16(D, E);
-		cyclesRemaining += 2;
+		++cyclesRemaining;
 		break;
 	case 28:
 		incReg8(E);
@@ -149,10 +149,11 @@ void GBCPU::processUnprefixedOPCode(byte OPCode) {
 	case 34:
 		copyReg8(getHLMemory(), A);
 		incReg16(H, L);
+		--cyclesRemaining;
 		break;
 	case 35:
 		incReg16(H, L);
-		cyclesRemaining += 2;
+		++cyclesRemaining;
 		break;
 	case 36:
 		incReg8(H);
@@ -175,10 +176,11 @@ void GBCPU::processUnprefixedOPCode(byte OPCode) {
 	case 42:
 		copyReg8(A, getHLMemory());
 		incReg16(H, L);
+		--cyclesRemaining;
 		break;
 	case 43:
 		decReg16(H, L);
-		cyclesRemaining += 2;
+		++cyclesRemaining;
 		break;
 	case 44:
 		incReg8(L);
@@ -201,13 +203,14 @@ void GBCPU::processUnprefixedOPCode(byte OPCode) {
 	case 50:
 		copyReg8(getHLMemory(), A);
 		decReg16(H, L);
+		--cyclesRemaining;
 		break;
 	case 51:
 		++SP;
 		cyclesRemaining += 2;
 		break;
 	case 52:
-		incReg8(getHLMemory());
+		OPCodeStep = 1;
 		++cyclesRemaining;
 		break;
 	case 53:
@@ -215,7 +218,8 @@ void GBCPU::processUnprefixedOPCode(byte OPCode) {
 		++cyclesRemaining;
 		break;
 	case 54:
-		loadReg8(getHLMemory());
+		tempBytePtr = &(getHLMemory());
+		OPCodeStep = 1;
 		break;
 	case 55:
 		setCarry();
@@ -229,6 +233,7 @@ void GBCPU::processUnprefixedOPCode(byte OPCode) {
 	case 58:
 		copyReg8(A, getHLMemory());
 		decReg16(H, L);
+		--cyclesRemaining;
 		break;
 	case 59:
 		--SP;
@@ -409,7 +414,11 @@ void GBCPU::processUnprefixedOPCode(byte OPCode) {
 		copyReg8(getHLMemory(), L);
 		break;
 	case 118:
-		// TODO: HALT OPCode
+		// Halt CPU if an interrupt is not pending
+		if ((IF & IE) == 0) {
+			// Interrupt not pending
+			isHalted = true;
+		}
 		cyclesRemaining += 3;
 		break;
 	case 119:
@@ -638,16 +647,16 @@ void GBCPU::processUnprefixedOPCode(byte OPCode) {
 		fillFromStack(B, C);
 		break;
 	case 194:
-		loadReg16(addressToWriteTo);
-		jump(addressToWriteTo, !zeroFlag);
+		loadReg16(tempAddress);
+		jump(tempAddress, !zeroFlag);
 		break;
 	case 195:
-		loadReg16(addressToWriteTo);
-		jump(addressToWriteTo, 1);
+		loadReg16(tempAddress);
+		jump(tempAddress, 1);
 		break;
 	case 196:
-		loadReg16(addressToWriteTo);
-		conditionalCall(addressToWriteTo, !zeroFlag);
+		loadReg16(tempAddress);
+		conditionalCall(tempAddress, !zeroFlag);
 		break;
 	case 197:
 		pushToStack(B, C);
@@ -668,20 +677,20 @@ void GBCPU::processUnprefixedOPCode(byte OPCode) {
 		ret();
 		break;
 	case 202:
-		loadReg16(addressToWriteTo);
-		jump(addressToWriteTo, zeroFlag);
+		loadReg16(tempAddress);
+		jump(tempAddress, zeroFlag);
 		break;
 	case 203:
 		nextInstructionPrefixed = true;
 		++cyclesRemaining;
 		break;
 	case 204:
-		loadReg16(addressToWriteTo);
-		conditionalCall(addressToWriteTo, zeroFlag);
+		loadReg16(tempAddress);
+		conditionalCall(tempAddress, zeroFlag);
 		break;
 	case 205:
-		loadReg16(addressToWriteTo);
-		conditionalCall(addressToWriteTo, true);
+		loadReg16(tempAddress);
+		conditionalCall(tempAddress, true);
 		break;
 	case 206:
 		addToAWithCarry(mem->read(PC));
@@ -699,12 +708,12 @@ void GBCPU::processUnprefixedOPCode(byte OPCode) {
 		fillFromStack(D, E);
 		break;
 	case 210:
-		loadReg16(addressToWriteTo);
-		jump(addressToWriteTo, !carryFlag);
+		loadReg16(tempAddress);
+		jump(tempAddress, !carryFlag);
 		break;
 	case 212:
-		loadReg16(addressToWriteTo);
-		conditionalCall(addressToWriteTo, !carryFlag);
+		loadReg16(tempAddress);
+		conditionalCall(tempAddress, !carryFlag);
 		break;
 	case 213:
 		pushToStack(D, E);
@@ -726,12 +735,12 @@ void GBCPU::processUnprefixedOPCode(byte OPCode) {
 		IME = 1;
 		break;
 	case 218:
-		loadReg16(addressToWriteTo);
-		jump(addressToWriteTo, carryFlag);
+		loadReg16(tempAddress);
+		jump(tempAddress, carryFlag);
 		break;
 	case 220:
-		loadReg16(addressToWriteTo);
-		conditionalCall(addressToWriteTo, carryFlag);
+		loadReg16(tempAddress);
+		conditionalCall(tempAddress, carryFlag);
 		break;
 	case 222:
 		subtractFromAWithCarry(mem->read(PC));
@@ -743,9 +752,10 @@ void GBCPU::processUnprefixedOPCode(byte OPCode) {
 		++cyclesRemaining;
 		break;
 	case 224:
-		copyReg8(getHighMemory(mem->read(PC)), A);
+		tempByte = mem->read(PC);
 		++PC;
 		++cyclesRemaining;
+		OPCodeStep = 1;
 		break;
 	case 225:
 		fillFromStack(H, L);
@@ -772,8 +782,9 @@ void GBCPU::processUnprefixedOPCode(byte OPCode) {
 		jump(HL, 1);
 		break;
 	case 234:
-		loadReg16(addressToWriteTo);
-		copyReg8(mem->read(addressToWriteTo), A);
+		loadReg16(tempAddress);
+		--cyclesRemaining;
+		OPCodeStep = 1;
 		break;
 	case 238:
 		xorA(mem->read(PC));
@@ -785,14 +796,13 @@ void GBCPU::processUnprefixedOPCode(byte OPCode) {
 		++cyclesRemaining;
 		break;
 	case 240:
-		copyReg8(A, getHighMemory(mem->read(PC)));
+		tempByte = mem->read(PC);
+		OPCodeStep = 1;
 		++PC;
 		++cyclesRemaining;
 		break;
 	case 241:
 		fillFromStack(A, F);
-		// Sets bits 0, 1, 2, and 3 of the F register back to 0 (These bits should be unused)
-		F = F & (Z_FLAG | N_FLAG | H_FLAG | C_FLAG);
 		break;
 	case 242:
 		copyReg8(A, getHighMemory(C));
@@ -820,8 +830,9 @@ void GBCPU::processUnprefixedOPCode(byte OPCode) {
 		cyclesRemaining += 2;
 		break;
 	case 250:
-		loadReg16(addressToWriteTo);
-		copyReg8(A, mem->read(addressToWriteTo));
+		loadReg16(tempAddress);
+		--cyclesRemaining;
+		OPCodeStep = 1;
 		break;
 	case 251:
 		EI();
