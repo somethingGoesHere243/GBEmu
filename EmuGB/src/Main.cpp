@@ -17,6 +17,7 @@ int main() {
 
 	testGB->init();
 
+
 	// Keep Window open until closed
 	SDL_Event e;
 	bool quit = false;

@@ -50,4 +50,7 @@ public:
 
 	// Writes a value to a given address (if it is currently accessible)
 	void write(address addr, byte newVal);
+
+	// Performs an OAM DMA Transfer based on the value stored in address 0xFF46
+	void DMATransfer();
 };

@@ -25,52 +25,41 @@ void GBPPU::setTile() {
 
 	int y = ((LY + SCY) & 0xFF) / 8;
 
-	Tile tile{ tileMap, x, y };
-	backgroundFIFO.currTile = tile;
+	// Get ID of tile of interest
+	address IDAddress = 0x9800 + 0x0400 * tileMap + 0x0020 * y + x;
+	backgroundFIFO.currTileID = mem->PPURead(IDAddress);
 }
 
 void GBPPU::setTileDataLow() {
-	// Get ID of tile of interest
-	address IDAddress = 0x9800 + 0x0400 * (backgroundFIFO.currTile.tileMap) + 0x0020 * (backgroundFIFO.currTile.yCoord) + backgroundFIFO.currTile.xCoord;
-	 byte tileID = mem->PPURead(IDAddress);
-
-
 	// Specific byte we want to read within the Tile data
 	byte offset = 2 * ((LY + SCY) % 8);
 
 	// Determine which block of tiles we want to read data from
 	address tileBlock{ 0x9000 };
-	if (tileID & 128) {
-		tileID -= 128;
-		tileBlock = 0x8800;
+	if (backgroundFIFO.currTileID & 128) {
+		tileBlock = 0x8800 - 128 * 0x0010;
 	}
 	// Check bit 4 of LCDC
 	else if (LCDC & 16) {
 		tileBlock = 0x8000;
 	}
-	backgroundFIFO.currTileDataLow = mem->PPURead(tileBlock + tileID * 0x0010 + offset);
+	backgroundFIFO.currTileDataLow = mem->PPURead(tileBlock + backgroundFIFO.currTileID * 0x0010 + offset);
 }
 
 void GBPPU::setTileDataHigh() {
-	// Get ID of tile of interest
-	address IDAddress = 0x9800 + 0x0400 * (backgroundFIFO.currTile.tileMap) + 0x0020 * (backgroundFIFO.currTile.yCoord) + backgroundFIFO.currTile.xCoord;
-	byte tileID = mem->PPURead(IDAddress);
-
-
 	// Specific byte we want to read within the Tile data
 	byte offset = 2 * ((LY + SCY) % 8);
 
 	// Determine which block of tiles we want to read data from
 	address tileBlock{ 0x9000 };
-	if (tileID & 128) {
-		tileID -= 128;
-		tileBlock = 0x8800;
+	if (backgroundFIFO.currTileID & 128) {
+		tileBlock = 0x8800 - 128 * 0x0010;
 	}
 	// Check bit 4 of LCDC
 	else if (LCDC & 16) {
 		tileBlock = 0x8000;
 	}
-	backgroundFIFO.currTileDataHigh = mem->PPURead(tileBlock + tileID * 0x0010 + offset + 1);
+	backgroundFIFO.currTileDataHigh = mem->PPURead(tileBlock + backgroundFIFO.currTileID * 0x0010 + offset + 1);
 }
 
 bool GBPPU::pushPixels() {
@@ -90,15 +79,105 @@ bool GBPPU::pushPixels() {
 	return true;
 }
 
+void GBPPU::objSetTile() {
+	objectFIFO.currTileID = activeObj->tileIndex;
+}
+
+void GBPPU::objSetTileDataLow() {
+	// Specific byte we want to read within the Tile data
+	byte offset = 2 * ((LY - activeObj->yPos + 32) % 8);
+
+	// Check if object is vertically flipped (bit 6 of attributes)
+	bool yFlip = activeObj->Attributes & 64;
+	if (yFlip) {
+		offset = 14 - offset;
+	}
+
+	//Objects always use 0x8000 - 0x8FFF tile block
+	constexpr address tileBlock{ 0x8000 };
+	objectFIFO.currTileDataLow = mem->PPURead(tileBlock + objectFIFO.currTileID * 0x0010 + offset);
+}
+
+void GBPPU::objSetTileDataHigh() {
+	// Specific byte we want to read within the Tile data
+	byte offset = 2 * ((LY - activeObj->yPos + 32) % 8);
+
+	// Check if object is vertically flipped (bit 6 of attributes)
+	bool yFlip = activeObj->Attributes & 64;
+	if (yFlip) {
+		offset = 14 - offset;
+	}
+
+	//Objects always use 0x8000 - 0x8FFF tile block
+	constexpr address tileBlock{ 0x8000 };
+	objectFIFO.currTileDataHigh = mem->PPURead(tileBlock + objectFIFO.currTileID * 0x0010 + offset + 1);
+}
+
+bool GBPPU::objPushPixels() {
+	// If not enough space in FIFO to push 8 pixels return early
+	if (objectFIFO.pixelCount > 8) {
+		return false;
+	}
+	// Only on screen pixels (those with x > 0)
+	int pixelsToPush = 8;
+	if (activeObj->xPos < 8) {
+		pixelsToPush = activeObj->xPos;
+	}
+	// If pixels are already in the FIFO need to skip over that many pixels in this new object
+	int pixelsToSkip = objectFIFO.pixelCount;
+
+	// Check if object is horizontally flipped
+	bool flipX = activeObj->Attributes & 32; // 5th bit
+
+	for (int i = 0; i < pixelsToPush; ++i) {
+		// Only start pushing new pixels into FIFO once we have skipped over the correct amount
+		if (i >= pixelsToSkip) {
+			int currPixelIndex = (flipX) ? i : 7 - i;
+
+			bool leastSigBit = objectFIFO.currTileDataLow & (1 << currPixelIndex);
+			bool mostSigBit = objectFIFO.currTileDataHigh & (1 << currPixelIndex);
+
+			objectFIFO.pixels[objectFIFO.pixelCount] = 2 * mostSigBit + leastSigBit;
+			++objectFIFO.pixelCount;
+		}
+		else if (objectFIFO.pixels[i] == 0) {
+			// If a transparent pixel is currently in the FIFO it can be overwritten with an opaque one
+			int currPixelIndex = (flipX) ? i : 7 - i;
+
+			bool leastSigBit = objectFIFO.currTileDataLow & (1 << currPixelIndex);
+			bool mostSigBit = objectFIFO.currTileDataHigh & (1 << currPixelIndex);
+
+			objectFIFO.pixels[i] = 2 * mostSigBit + leastSigBit;
+		}
+	}
+	++objectFIFO.xPos;
+	return true;
+}
+
 void GBPPU::drawPixel() {
 	// If there are at least 8 pixels in the FIFO we can draw pixels to the screen
-	if (backgroundFIFO.pixelCount > 8) {
-		int pixelToDraw = backgroundFIFO.popPixel();
+	// Cant draw whilst an object is being fetched
+	if (backgroundFIFO.pixelCount > 8 && !objectFIFOActive) {
+		int backgroundPixel = backgroundFIFO.popPixel();
+
+		// Check if objectFIFO contains a pixel
+		// Only attempt to draw object if bit 1 of LCDC is on
+		if ((LCDC & 2) && objectFIFO.pixelCount > 0) {
+			int objectPixel = objectFIFO.popPixel();
+
+			// Mix with background pixel
+			bool backgroundPriority = activeObj->Attributes & 128; //7th Bit
+				if (objectPixel != 0 &&
+					(!backgroundPriority || backgroundPixel == 0)) {
+					backgroundPixel = objectPixel;
+			}
+		}
+
 		// Convert pixel (number 0, 1, 2, or 3) into an rgb value
 		int r{ 155 };
 		int g{ 188 };
 		int b{ 15 };
-		switch (pixelToDraw) {
+		switch (backgroundPixel) {
 		case 1:
 			r = 139;
 			g = 172;
@@ -201,18 +280,6 @@ void GBPPU::update(TileMap* debugTileMap) {
 		mem->write(0xFF0F, currentIF | 2);
 	}
 
-	// One pixel is drawn to the screen per dot when in mode 3
-	if (PPUMode == 3 && LY < 144) {
-		drawPixel();
-	}
-
-	// Check if PPU needs to wait before next update
-	if (dotsToIdle > 0) {
-		++dotsOnCurrentRow;
-		--dotsToIdle;
-		return;
-	}
-
 	// HBlank Mode
 	if (PPUMode == 0) {
 		++dotsOnCurrentRow;
@@ -224,6 +291,9 @@ void GBPPU::update(TileMap* debugTileMap) {
 
 			// Reset dots counter
 			dotsOnCurrentRow = 0;
+
+			// Reset count of objects on line
+			currLineObjectsCount = 0;
 
 			// Check if new row is in a VBlank
 			if (LY >= 144) {
@@ -275,8 +345,29 @@ void GBPPU::update(TileMap* debugTileMap) {
 	// OAM Scan Mode
 	else if (PPUMode == 2) {
 		++dotsOnCurrentRow;
+		// PPU scans one OAM entry every 2 dots
+		// Can stop checking for objects once we have found 10
+		if (currLineObjectsCount < 10 && dotsOnCurrentRow % 2 == 1) {
+			// Get the current OAM entry
+			int OAMEntryNumber = dotsOnCurrentRow / 2;
+			constexpr int bytesPerOAMEntry = 4;
+			address OAMEntryStartPoint = 0xFE00 + bytesPerOAMEntry * OAMEntryNumber;
 
-		// TODO: Finish Implementation 
+			// Get yPosition from byte 0 of entry and check if object is on the current scanline
+			byte yPos = mem->PPURead(OAMEntryStartPoint);
+			int objectHeight = (LCDC & 4) ? 16 : 8; // Bit 2 of LCDC determines objects height
+			
+			if (LY + 16 >= (int)yPos && LY + 16 < (int)yPos + objectHeight) {
+				// Object is on current scanline
+				byte xPos = mem->PPURead(OAMEntryStartPoint + 1);
+				byte TileIndex = mem->PPURead(OAMEntryStartPoint + 2);
+				byte Attributes = mem->PPURead(OAMEntryStartPoint + 3);
+
+				OAMEntry newEntry{ yPos, xPos, TileIndex, Attributes, false };
+				currLineObjects[currLineObjectsCount] = newEntry;
+				++currLineObjectsCount;
+			}
+		}
 
 		// Mode lasts for 80 dots
 		if (dotsOnCurrentRow == 80) {
@@ -288,40 +379,109 @@ void GBPPU::update(TileMap* debugTileMap) {
 
 	// Pixel Drawing Mode
 	else if (PPUMode == 3) {
-		// Check current step for the FIFO
-		switch (backgroundFIFO.step) {
-		case GET_TILE:
-			setTile();
+		// Check if PPU needs to wait before next update
+		if (dotsToIdle > 0) {
 			++dotsOnCurrentRow;
-			dotsToIdle = 1;
-			backgroundFIFO.step = GET_TILE_DATA_LOW;
-			break;
-		case GET_TILE_DATA_LOW:
-			setTileDataLow();
-			++dotsOnCurrentRow;
-			dotsToIdle = 1;
-			backgroundFIFO.step = GET_TILE_DATA_HIGH;
-			break;
-		case GET_TILE_DATA_HIGH:
-			setTileDataHigh();
-			++dotsOnCurrentRow;
-			dotsToIdle = 1;
-			backgroundFIFO.step = SLEEP;
-			break;
-		case SLEEP:
-			++dotsOnCurrentRow;
-			dotsToIdle = 1;
-			backgroundFIFO.step = PUSH;
-			break;
-		case PUSH:
-			// Attempt to push pixels to FIFO 
-			if (pushPixels()) {
-				// Successfully pushed pixels so change FIFO step
-				backgroundFIFO.step = GET_TILE;
-			}
+			--dotsToIdle;
+		}
+		// Objects are enabled only if bit 1 of LCDC is
+		else {
+			// Check if an object needs to be drawn in the current pixel column
+			for (int objIndex = 0; objIndex < currLineObjectsCount; ++objIndex) {
+				OAMEntry* currObj = &(currLineObjects[objIndex]);
+				if (!currObj->beenFetched && currObj->xPos <= pixelColumn + 8) {
+					currObj->beenFetched = true;
+					activeObj = currObj;
 
-			++dotsOnCurrentRow;
-			break;
+					// Reset and pause background FIFO
+					backgroundFIFO.step = GET_TILE;
+					objectFIFOActive = true;
+					break;
+				}
+			}
+			// Check if need to perform a sprite fetch
+			if (objectFIFOActive) {
+				switch (objectFIFO.step) {
+				case GET_TILE:
+					objSetTile();
+					++dotsOnCurrentRow;
+					dotsToIdle = 1;
+					objectFIFO.step = GET_TILE_DATA_LOW;
+					break;
+				case GET_TILE_DATA_LOW:
+					objSetTileDataLow();
+					++dotsOnCurrentRow;
+					dotsToIdle = 1;
+					objectFIFO.step = GET_TILE_DATA_HIGH;
+					break;
+				case GET_TILE_DATA_HIGH:
+					objSetTileDataHigh();
+					++dotsOnCurrentRow;
+					dotsToIdle = 1;
+					objectFIFO.step = SLEEP;
+					break;
+				case SLEEP:
+					++dotsOnCurrentRow;
+					dotsToIdle = 1;
+					objectFIFO.step = PUSH;
+					break;
+				case PUSH:
+					// Attempt to push pixels to FIFO 
+					if (objPushPixels()) {
+						// Successfully pushed pixels so change FIFO step
+						objectFIFO.step = GET_TILE;
+
+						// Deactivate object FIFO
+						objectFIFOActive = false;
+						return;
+					}
+
+					++dotsOnCurrentRow;
+					break;
+				}
+			}
+			else {
+
+				// Otherwise perform background fetch
+				switch (backgroundFIFO.step) {
+				case GET_TILE:
+					setTile();
+					++dotsOnCurrentRow;
+					dotsToIdle = 1;
+					backgroundFIFO.step = GET_TILE_DATA_LOW;
+					break;
+				case GET_TILE_DATA_LOW:
+					setTileDataLow();
+					++dotsOnCurrentRow;
+					dotsToIdle = 1;
+					backgroundFIFO.step = GET_TILE_DATA_HIGH;
+					break;
+				case GET_TILE_DATA_HIGH:
+					setTileDataHigh();
+					++dotsOnCurrentRow;
+					dotsToIdle = 1;
+					backgroundFIFO.step = SLEEP;
+					break;
+				case SLEEP:
+					++dotsOnCurrentRow;
+					dotsToIdle = 1;
+					backgroundFIFO.step = PUSH;
+					break;
+				case PUSH:
+					// Attempt to push pixels to FIFO 
+					if (pushPixels()) {
+						// Successfully pushed pixels so change FIFO step
+						backgroundFIFO.step = GET_TILE;
+					}
+					++dotsOnCurrentRow;
+					break;
+				}
+			}
+		}
+
+		// One pixel is drawn to the screen per dot when in mode 3
+		if (LY < 144) {
+			drawPixel();
 		}
 	}
 }

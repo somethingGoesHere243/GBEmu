@@ -90,8 +90,6 @@ bool GBMemory::isAccessible(address addr) {
 	return true;
 }
 
-// TODO: Work out correct CPU and PPU timings to allow for locking off of memory at certain times
-
 byte& GBMemory::read(address addr) {
 	if (isAccessible(addr)) {
 		// Memory is accessible
@@ -119,6 +117,13 @@ void GBMemory::write(address addr, byte newVal) {
 	// Attempting to overwrite ROM from the cartridge should be ignored
 	if (addr < 0x8000) { return; }
 
+	// Attempting to write to address 0xFF46 triggers a DMA Transfer
+	if (addr == 0xFF46) {
+		data[0xFF46] = newVal;
+		DMATransfer();
+		return;
+	}
+
 	if (isAccessible(addr)) {
 		// Memory is accessible
 		data[addr] = newVal;
@@ -128,4 +133,16 @@ void GBMemory::write(address addr, byte newVal) {
 			data[addr] = 0;
 		}
 	}
+}
+
+void GBMemory::DMATransfer() {
+	// TODO: Lock most of memory during the transfer
+
+	// Value in 0xFF46 multiplied by 0x0100 specifies the source of the transfer
+	int source = data[0xFF46] * 0x0100;
+	for (int i = 0; i < 0x00A0; ++i) {
+		data[0xFE00 + i] = data[source + i];
+	}
+
+	return;
 }

@@ -28,6 +28,8 @@ void GBCPU::processUnprefixedOPCode() {
 		break;
 	case 2:
 		copyReg8(getBCMemory(), A);
+		// Check for DMA Transfer
+		if (BC == 0xFF46) { mem->DMATransfer(); }
 		break;
 	case 3:
 		incReg16(B, C);
@@ -92,6 +94,8 @@ void GBCPU::processUnprefixedOPCode() {
 		break;
 	case 18:
 		copyReg8(getDEMemory(), A);
+		// Check for DMA Transfer
+		if (DE == 0xFF46) { mem->DMATransfer(); }
 		break;
 	case 19:
 		incReg16(D, E);
@@ -150,6 +154,8 @@ void GBCPU::processUnprefixedOPCode() {
 		copyReg8(getHLMemory(), A);
 		incReg16(H, L);
 		--cyclesRemaining;
+		// Check for DMA Transfer
+		if (HL == 0xFF46) { mem->DMATransfer(); }
 		break;
 	case 35:
 		incReg16(H, L);
@@ -204,6 +210,8 @@ void GBCPU::processUnprefixedOPCode() {
 		copyReg8(getHLMemory(), A);
 		decReg16(H, L);
 		--cyclesRemaining;
+		// Check for DMA Transfer
+		if (HL == 0xFF46) { mem->DMATransfer(); }
 		break;
 	case 51:
 		++SP;
@@ -397,21 +405,33 @@ void GBCPU::processUnprefixedOPCode() {
 		break;
 	case 112:
 		copyReg8(getHLMemory(), B);
+		// Check for DMA Transfer
+		if (HL == 0xFF46) { mem->DMATransfer(); }
 		break;
 	case 113:
 		copyReg8(getHLMemory(), C);
+		// Check for DMA Transfer
+		if (HL == 0xFF46) { mem->DMATransfer(); }
 		break;
 	case 114:
 		copyReg8(getHLMemory(), D);
+		// Check for DMA Transfer
+		if (HL == 0xFF46) { mem->DMATransfer(); }
 		break;
 	case 115:
 		copyReg8(getHLMemory(), E);
+		// Check for DMA Transfer
+		if (HL == 0xFF46) { mem->DMATransfer(); }
 		break;
 	case 116:
 		copyReg8(getHLMemory(), H);
+		// Check for DMA Transfer
+		if (HL == 0xFF46) { mem->DMATransfer(); }
 		break;
 	case 117:
 		copyReg8(getHLMemory(), L);
+		// Check for DMA Transfer
+		if (HL == 0xFF46) { mem->DMATransfer(); }
 		break;
 	case 118:
 		// Halt CPU if an interrupt is not pending
@@ -423,6 +443,8 @@ void GBCPU::processUnprefixedOPCode() {
 		break;
 	case 119:
 		copyReg8(getHLMemory(), A);
+		// Check for DMA Transfer
+		if (HL == 0xFF46) { mem->DMATransfer(); }
 		break;
 	case 120:
 		copyReg8(A, B);
@@ -762,6 +784,8 @@ void GBCPU::processUnprefixedOPCode() {
 		break;
 	case 226:
 		copyReg8(getHighMemory(C), A);
+		// Check for DMA Transfer
+		if (C == 0x0046) { mem->DMATransfer(); }
 		break;
 	case 229:
 		pushToStack(H, L);

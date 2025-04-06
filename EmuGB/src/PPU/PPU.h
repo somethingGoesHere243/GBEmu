@@ -8,6 +8,26 @@
 using byte = uint8_t;
 using address = unsigned short;
 
+// Each of the 40 entries in the OAM (0xFE00 - 0xFE9F) take the below form
+struct OAMEntry {
+	byte yPos;
+	byte xPos;
+	byte tileIndex;
+
+	// The bits of Attributes hold the following meanings:
+	// Bits 0, 1, 2: CGB Palette
+	// Bit 3: CGB Bank
+	// Bit 4: DMG Palette
+	// Bit 5: Flip X
+	// Bit 6: Flip Y
+	// Bit 7: Priority (If set to 1 BG/Window will be drawn over this unless colour is 0)
+
+	byte Attributes;
+
+	// Flag set to true once this OAM Entry has been fetched/drawn on the current line
+	bool beenFetched;
+};
+
 class GBPPU {
 private:
 	// Memory connected to PPU
@@ -32,6 +52,12 @@ private:
 	// Check if PPU was just turned back on
 	bool justTurnedOn{ false };
 
+	// During PPUMode 2 the PPU retrieves 10 entries from the OAM which lie on the current scanline
+	OAMEntry currLineObjects[10];
+
+	// Keep track of number of OAM entries retrieved on the current scanline
+	int currLineObjectsCount{ 0 };
+
 	// LCD Control Bits: address FF40 in memory
 	byte& LCDC;
 
@@ -50,7 +76,13 @@ private:
 
 	// 2 FIFOS linked to PPU
 	FIFO backgroundFIFO;
-	// TODO: FIFO objectFIFO;
+	FIFO objectFIFO;
+
+	// Flag to activate when objectFIFO is fetching a sprite
+	bool objectFIFOActive = false;
+
+	// Object currently being processed in the objectFIFO
+	OAMEntry* activeObj;
 
 public:	
 	// Creates new PPU linked to the given screen and memory
@@ -65,6 +97,12 @@ public:
 
 	// Push 8 pixels from tile data into FIFO (returns false if pixels failed to be pushed)
 	bool pushPixels();
+
+	// Same as the above 4 functions but for the objectFIFO
+	void objSetTile();
+	void objSetTileDataLow();
+	void objSetTileDataHigh();
+	bool objPushPixels();
 
 	// Draws pixel (popped from FIFO) to screen
 	void drawPixel();

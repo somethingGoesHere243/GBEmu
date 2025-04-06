@@ -4,16 +4,6 @@
 using byte = uint8_t;
 using address = unsigned short;
 
-// Pixels to be pushed into FIFO
-struct Tile {
-	// Tile Map containing the desired tile
-	int tileMap;
-
-	// Coordinates of the tile within the tile map
-	int xCoord;
-	int yCoord;
-};
-
 enum FIFOStep {
 	GET_TILE,
 	GET_TILE_DATA_LOW,
@@ -33,8 +23,8 @@ public:
 	// FIFO keeps track of its own x Position
 	int xPos{ 0 };
 
-	// Current tile which FIFO is pulling data from
-	Tile currTile{ 0,0,0 };
+	// ID of current tile which FIFO is pulling data from
+	byte currTileID{ 0 };
 
 	// Tile data to be pushed into FIFO
 	byte currTileDataLow;

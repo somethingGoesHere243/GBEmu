@@ -16,9 +16,13 @@ void GBCPU::processLaterStep() {
 		break;
 	case 224:
 		copyReg8(getHighMemory(tempByte), A);
+		// Check for DMA Transfer
+		if (tempByte == 0x0046) { mem->DMATransfer(); }
 		break;
 	case 234:
 		copyReg8(mem->read(tempAddress), A);
+		// Check for DMA Transfer
+		if (tempAddress == 0xFF46) { mem->DMATransfer(); }
 		++cyclesRemaining;
 		break;
 	case 240:
