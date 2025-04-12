@@ -1,5 +1,5 @@
 #pragma once
-#include "../Memory.h"
+#include "../Memory/Memory.h"
 
 using byte = uint8_t;
 using address = unsigned short;
@@ -80,7 +80,9 @@ public:
 
 	void processPrefixedOPCode(); // Process codes which were preceded by the CB OPCode
 
-	void processLaterStep(); // Process OPCodes whose implementation must be split into multiple steps
+	// Process OPCodes whose implementation must be split into multiple steps
+	void processOPCodeSecondStep();
+	void processOPCodeThirdStep();
 
 	// Enables interrupt flag upon next instruction call
 	void EI();
@@ -100,20 +102,8 @@ public:
 	// Decrement an 8 bit register (no flags changed)
 	void decReg8(byte& reg);
 
-	// Retrieves data from the memory address given by the BC (combined) register
-	byte& getBCMemory();
-
-	// Retrieves data from the memory address given by the DE (combined) register
-	byte& getDEMemory();
-
-	// Retrieves data from the memory address given by the HL (combined) register
-	byte& getHLMemory();
-
-	// Retrieves data from the memory address given by $FF00 + reg
-	byte& getHighMemory(byte& reg);
-
 	// Copy data between 2 8-bit registers
-	void copyReg8(byte& destReg, byte& SourceReg); 
+	void copyReg8(byte& destReg, byte SourceReg); 
 
 	// Load an 8 bit register with 8 bit value pointed to by the PC
 	void loadReg8(byte& destReg);
@@ -173,28 +163,28 @@ public:
 	void invertCarry();
 
 	// Adds the value in the given 8 bit register to the accumulator (A register)
-	void addToA(byte& reg);
+	void addToA(byte reg);
 
 	// Adds the value in the given 8 bit register plus the carry flag to the accumulator (A register)
-	void addToAWithCarry(byte& reg);
+	void addToAWithCarry(byte reg);
 
 	// Subtracts the value in the given 8 bit register from the accumulator (A register)
-	void subtractFromA(byte& reg);
+	void subtractFromA(byte reg);
 
 	// Subtracts (the value in the given 8 bit register plus the carry flag) from the accumulator (A register)
-	void subtractFromAWithCarry(byte& reg);
+	void subtractFromAWithCarry(byte reg);
 
 	// Set A to the bitwise AND of itself with a given 8 bit register
-	void andA(byte& reg);
+	void andA(byte reg);
 
 	// Set A to the bitwise XOR of itself with a given 8 bit register
-	void xorA(byte& reg);
+	void xorA(byte reg);
 
 	// Set A to the bitwise OR of itself with a given 8 bit register
-	void orA(byte& reg);
+	void orA(byte reg);
 
 	// Compares the value of A with the value of another 8 bit register setting flags accordingly
-	void compareA(byte& reg);
+	void compareA(byte reg);
 
 	// Fills a given 2 8-bit registers with 2 values popped from the stack (note: reg2 is filled first)
 	void fillFromStack(byte& reg1, byte& reg2);

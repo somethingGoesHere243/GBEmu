@@ -3,6 +3,9 @@
 #include <iostream>
 
 void GBCPU::processPrefixedOPCode() {
+	// Gather 16 bit combined registers
+	address HL = (H << 8) + L;
+
 	// 5 most sig. bits of OPCode determine operation to perform on reg
 	byte fiveMostSigBits = (OPCode >> 3) & 31;
 
@@ -36,7 +39,9 @@ void GBCPU::processPrefixedOPCode() {
 		case 6:
 			// If executing a testBit OPCode then operation still performed in 1 step
 			if ((fiveMostSigBits >= 8) && (fiveMostSigBits <= 15)) {
-				regPtr = &(getHLMemory());
+				tempByte = mem->read(HL);
+				regPtr = &tempByte;
+				++cyclesRemaining;
 			}
 			else {
 				// Need 2 steps for OPCode
@@ -52,8 +57,10 @@ void GBCPU::processPrefixedOPCode() {
 		}
 	}
 	else {
-		regPtr = &(getHLMemory());
+		tempByte = mem->read(HL);
+		regPtr = &tempByte;
 		OPCodeStep = 0;
+		++cyclesRemaining;
 	}
 
 	switch (fiveMostSigBits) {
@@ -153,6 +160,11 @@ void GBCPU::processPrefixedOPCode() {
 	case 31:
 		setBit(*regPtr, 7, 1);
 		break;
+	}
+
+	// If working with HL register OPCode must now write new value into memory
+	if (threeLeastSigBits == 6) {
+		mem->write(HL, tempByte);
 	}
 
 	nextInstructionPrefixed = false;

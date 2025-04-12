@@ -78,39 +78,39 @@ void Controller::update(GBMemory* mem) {
 	constexpr address JOYP = 0xFF00;
 	byte currJOYPVal = mem->read(JOYP);
 
-	// Don't want to change bits 4 and 5 of the JOYP register
+	// Don't want to change bits 4 - 7 of the JOYP register
 	// Initially bits 0, 1, 2, 3 are all set
-	byte newJOYPVal = (currJOYPVal & (16 + 32)) + 15;
+	byte newJOYPVal = (currJOYPVal & 0b11110000) + 15;
 
 	// If bit 4 is unset read current state of DPad buttons
 	if (!(newJOYPVal & 16)) {
 		if (rightPressed) {
-			newJOYPVal -= 1;
+			newJOYPVal = newJOYPVal - (newJOYPVal & 1);
 		}
 		if (leftPressed) {
-			newJOYPVal -= 2;
+			newJOYPVal = newJOYPVal - (newJOYPVal & 2);
 		}
 		if (upPressed) {
-			newJOYPVal -= 4;
+			newJOYPVal = newJOYPVal - (newJOYPVal & 4);
 		}
 		if (downPressed) {
-			newJOYPVal -= 8;
+			newJOYPVal = newJOYPVal - (newJOYPVal & 8);
 		}
 	}
 
 	// If bit 5 is unset read current state of non-DPad buttons
 	if (!(newJOYPVal & 32)) {
 		if (aPressed) {
-			newJOYPVal -= 1;
+			newJOYPVal = newJOYPVal - (newJOYPVal & 1);
 		}
 		if (bPressed) {
-			newJOYPVal -= 2;
+			newJOYPVal = newJOYPVal - (newJOYPVal & 2);
 		}
 		if (selectPressed) {
-			newJOYPVal -= 4;
+			newJOYPVal = newJOYPVal - (newJOYPVal & 4);
 		}
 		if (startPressed) {
-			newJOYPVal -= 8;
+			newJOYPVal = newJOYPVal - (newJOYPVal & 8);
 		}
 	}
 	mem->write(JOYP, newJOYPVal);

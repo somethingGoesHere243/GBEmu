@@ -1,5 +1,5 @@
 #pragma once
-#include "../Memory.h"
+#include "../Memory/Memory.h"
 #include "Screen.h"
 #include "FIFO.h"
 
@@ -38,6 +38,9 @@ private:
 
 	// Column of next pixel to be drawn
 	int pixelColumn{ 0 };
+
+	// At the start of each scanline need to discard number of pixels equal to SCX (see below)
+	int discardedPixelsThisRow{ 0 };
 
 	// Track number of dots (cycles) spent on the current row (new row starts after 456 dots)
 	// If in VBlank mode takes 4560 dots to exit that mode

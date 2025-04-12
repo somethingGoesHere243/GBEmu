@@ -1,5 +1,5 @@
 #pragma once
-#include "../Memory.h"
+#include "../Memory/Memory.h"
 #include"../PPU/Screen.h"
 
 class TileMap {

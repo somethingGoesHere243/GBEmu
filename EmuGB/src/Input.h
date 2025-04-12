@@ -1,7 +1,7 @@
 #pragma once
 
 #include <SDL3/SDL.h>
-#include "Memory.h"
+#include "Memory/Memory.h"
 
 // Inputs are mapped as follows:
 // W -> DPad UP
@@ -32,7 +32,7 @@ private:
 	byte& IF; // Address 0xFF0F in memory
 
 public:
-	Controller(GBMemory* mem) : IF{ mem->read(0xFF0F) } {};
+	Controller(GBMemory* mem) : IF{ mem->PPURead(0xFF0F) } {};
 
 	// Checks if a button should be pressed
 	void pressButton(SDL_Keycode keyCode);

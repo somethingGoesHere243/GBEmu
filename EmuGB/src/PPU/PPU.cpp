@@ -160,6 +160,12 @@ void GBPPU::drawPixel() {
 	if (backgroundFIFO.pixelCount > 8 && !objectFIFOActive) {
 		int backgroundPixel = backgroundFIFO.popPixel();
 
+		// Check if pixel should be discarded
+		if (discardedPixelsThisRow < SCX % 8) {
+			++discardedPixelsThisRow;
+			return;
+		}
+
 		// Check if objectFIFO contains a pixel
 		// Only attempt to draw object if bit 1 of LCDC is on
 		if ((LCDC & 2) && objectFIFO.pixelCount > 0) {
@@ -228,6 +234,14 @@ void GBPPU::update(TileMap* debugTileMap) {
 		return;
 	}
 
+	// Set bit 2 of the STAT register if LYC matches LY
+	if (LYC == LY) {
+		STAT = STAT | 4;
+	}
+	else {
+		STAT = STAT - (STAT & 4);
+	}
+
 	// Check if PPU has just been enabled (Enters a HBlank for 76 dots)
 	if (justTurnedOn) {
 		++dotsOnCurrentRow;
@@ -245,14 +259,6 @@ void GBPPU::update(TileMap* debugTileMap) {
 	// Get current PPU Mode from the 2 least sig bits of STAT register
 	byte PPUMode = STAT & 3;
 	mem->PPUMode = PPUMode;
-
-	// Set bit 2 of the STAT register if LYC matches LY
-	if (LYC == LY) {
-		STAT = STAT | 4;
-	}
-	else {
-		STAT = STAT - (STAT & 4);
-	}
 
 	// Store old value of isSTATInterrupt
 	bool prevInterrupt = isSTATInterrupt;
@@ -288,6 +294,7 @@ void GBPPU::update(TileMap* debugTileMap) {
 			// Start a new row
 			++LY;
 			pixelColumn = 0;
+			discardedPixelsThisRow = 0;
 
 			// Reset dots counter
 			dotsOnCurrentRow = 0;
@@ -321,7 +328,6 @@ void GBPPU::update(TileMap* debugTileMap) {
 	// VBlank Mode
 	else if (PPUMode == 1) {
 		++dotsOnCurrentRow;
-		// Stop requesting VBlank interrupt (Only on first dot of the VBlank)
 		
 		// Check if a new row should have been started
 		if (dotsOnCurrentRow == 456) {
@@ -360,7 +366,13 @@ void GBPPU::update(TileMap* debugTileMap) {
 			if (LY + 16 >= (int)yPos && LY + 16 < (int)yPos + objectHeight) {
 				// Object is on current scanline
 				byte xPos = mem->PPURead(OAMEntryStartPoint + 1);
+
 				byte TileIndex = mem->PPURead(OAMEntryStartPoint + 2);
+				// If object height is 16 ignore bit 0 of the tile index
+				if (objectHeight == 16) {
+					TileIndex = TileIndex - (TileIndex & 1);
+				}
+
 				byte Attributes = mem->PPURead(OAMEntryStartPoint + 3);
 
 				OAMEntry newEntry{ yPos, xPos, TileIndex, Attributes, false };

@@ -1,4 +1,4 @@
-#include "Memory.h"
+#include "Memory/Memory.h"
 #include "CPU/CPU.h"
 #include "CPU/CPUTests.h"
 #include "GB.h"
@@ -12,8 +12,6 @@
 int main() {
 	GB* testGB = new GB;
 	TileMap debugTileMap{ &(testGB->Mem) };
-
-	// testGB->runTests();
 
 	testGB->init();
 

@@ -1,5 +1,7 @@
 #include "CPUTests.h"
 
+// NOTE: Many of the SM83 Tests now fail to pass due to there reliance on Memory addresses which should not be read to or written from
+
 void initCPU(nlohmann::json& initialState, GBCPU& cpu) {
 	// Reset CPU internal state
 	cpu.OPCode = 0;

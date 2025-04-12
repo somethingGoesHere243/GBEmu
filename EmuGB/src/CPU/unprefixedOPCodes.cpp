@@ -22,14 +22,12 @@ void GBCPU::processUnprefixedOPCode() {
 		++cyclesRemaining;
 		break;
 	case 1:
-		loadReg8(C);
-		loadReg8(B);
-		--cyclesRemaining;
+		OPCodeStep = 1;
+		++cyclesRemaining;
 		break;
 	case 2:
-		copyReg8(getBCMemory(), A);
-		// Check for DMA Transfer
-		if (BC == 0xFF46) { mem->DMATransfer(); }
+		mem->write(BC, A);
+		cyclesRemaining += 2;
 		break;
 	case 3:
 		incReg16(B, C);
@@ -63,7 +61,8 @@ void GBCPU::processUnprefixedOPCode() {
 		addToHL(BC);
 		break;
 	case 10:
-		copyReg8(A, getBCMemory());
+		OPCodeStep = 1;
+		++cyclesRemaining;
 		break;
 	case 11:
 		decReg16(B, C);
@@ -88,14 +87,12 @@ void GBCPU::processUnprefixedOPCode() {
 		cyclesRemaining += 3;
 		break;
 	case 17:
-		loadReg8(E);
-		loadReg8(D);
-		--cyclesRemaining;
+		OPCodeStep = 1;
+		++cyclesRemaining;
 		break;
 	case 18:
-		copyReg8(getDEMemory(), A);
-		// Check for DMA Transfer
-		if (DE == 0xFF46) { mem->DMATransfer(); }
+		mem->write(DE, A);
+		cyclesRemaining += 2;
 		break;
 	case 19:
 		incReg16(D, E);
@@ -122,7 +119,8 @@ void GBCPU::processUnprefixedOPCode() {
 		addToHL(DE);
 		break;
 	case 26:
-		copyReg8(A, getDEMemory());
+		OPCodeStep = 1;
+		++cyclesRemaining;
 		break;
 	case 27:
 		decReg16(D, E);
@@ -146,16 +144,13 @@ void GBCPU::processUnprefixedOPCode() {
 		relJump(!zeroFlag);
 		break;
 	case 33:
-		loadReg8(L);
-		loadReg8(H);
-		--cyclesRemaining;
+		OPCodeStep = 1;
+		++cyclesRemaining;
 		break;
 	case 34:
-		copyReg8(getHLMemory(), A);
+		mem->write(HL, A);
 		incReg16(H, L);
-		--cyclesRemaining;
-		// Check for DMA Transfer
-		if (HL == 0xFF46) { mem->DMATransfer(); }
+		++cyclesRemaining;
 		break;
 	case 35:
 		incReg16(H, L);
@@ -180,9 +175,8 @@ void GBCPU::processUnprefixedOPCode() {
 		addToHL(HL);
 		break;
 	case 42:
-		copyReg8(A, getHLMemory());
-		incReg16(H, L);
-		--cyclesRemaining;
+		OPCodeStep = 1;
+		++cyclesRemaining;
 		break;
 	case 43:
 		decReg16(H, L);
@@ -207,11 +201,9 @@ void GBCPU::processUnprefixedOPCode() {
 		loadReg16(SP);
 		break;
 	case 50:
-		copyReg8(getHLMemory(), A);
+		mem->write(HL, A);
 		decReg16(H, L);
-		--cyclesRemaining;
-		// Check for DMA Transfer
-		if (HL == 0xFF46) { mem->DMATransfer(); }
+		++cyclesRemaining;
 		break;
 	case 51:
 		++SP;
@@ -222,12 +214,12 @@ void GBCPU::processUnprefixedOPCode() {
 		++cyclesRemaining;
 		break;
 	case 53:
-		decReg8(getHLMemory());
+		OPCodeStep = 1;
 		++cyclesRemaining;
 		break;
 	case 54:
-		tempBytePtr = &(getHLMemory());
 		OPCodeStep = 1;
+		++cyclesRemaining;
 		break;
 	case 55:
 		setCarry();
@@ -239,9 +231,8 @@ void GBCPU::processUnprefixedOPCode() {
 		addToHL(SP);
 		break;
 	case 58:
-		copyReg8(A, getHLMemory());
-		decReg16(H, L);
-		--cyclesRemaining;
+		OPCodeStep = 1;
+		++cyclesRemaining;
 		break;
 	case 59:
 		--SP;
@@ -278,7 +269,8 @@ void GBCPU::processUnprefixedOPCode() {
 		copyReg8(B, L);
 		break;
 	case 70:
-		copyReg8(B, getHLMemory());
+		OPCodeStep = 1;
+		++cyclesRemaining;
 		break;
 	case 71:
 		copyReg8(B, A);
@@ -302,7 +294,8 @@ void GBCPU::processUnprefixedOPCode() {
 		copyReg8(C, L);
 		break;
 	case 78:
-		copyReg8(C, getHLMemory());
+		OPCodeStep = 1;
+		++cyclesRemaining;
 		break;
 	case 79:
 		copyReg8(C, A);
@@ -326,7 +319,8 @@ void GBCPU::processUnprefixedOPCode() {
 		copyReg8(D, L);
 		break;
 	case 86:
-		copyReg8(D, getHLMemory());
+		OPCodeStep = 1;
+		++cyclesRemaining;
 		break;
 	case 87:
 		copyReg8(D, A);
@@ -350,7 +344,8 @@ void GBCPU::processUnprefixedOPCode() {
 		copyReg8(E, L);
 		break;
 	case 94:
-		copyReg8(E, getHLMemory());
+		OPCodeStep = 1;
+		++cyclesRemaining;
 		break;
 	case 95:
 		copyReg8(E, A);
@@ -374,7 +369,8 @@ void GBCPU::processUnprefixedOPCode() {
 		copyReg8(H, L);
 		break;
 	case 102:
-		copyReg8(H, getHLMemory());
+		OPCodeStep = 1;
+		++cyclesRemaining;
 		break;
 	case 103:
 		copyReg8(H, A);
@@ -398,40 +394,35 @@ void GBCPU::processUnprefixedOPCode() {
 		copyReg8(L, L);
 		break;
 	case 110:
-		copyReg8(L, getHLMemory());
+		OPCodeStep = 1;
+		++cyclesRemaining;
 		break;
 	case 111:
 		copyReg8(L, A);
 		break;
 	case 112:
-		copyReg8(getHLMemory(), B);
-		// Check for DMA Transfer
-		if (HL == 0xFF46) { mem->DMATransfer(); }
+		OPCodeStep = 1;
+		++cyclesRemaining;
 		break;
 	case 113:
-		copyReg8(getHLMemory(), C);
-		// Check for DMA Transfer
-		if (HL == 0xFF46) { mem->DMATransfer(); }
+		OPCodeStep = 1;
+		++cyclesRemaining;
 		break;
 	case 114:
-		copyReg8(getHLMemory(), D);
-		// Check for DMA Transfer
-		if (HL == 0xFF46) { mem->DMATransfer(); }
+		OPCodeStep = 1;
+		++cyclesRemaining;
 		break;
 	case 115:
-		copyReg8(getHLMemory(), E);
-		// Check for DMA Transfer
-		if (HL == 0xFF46) { mem->DMATransfer(); }
+		OPCodeStep = 1;
+		++cyclesRemaining;
 		break;
 	case 116:
-		copyReg8(getHLMemory(), H);
-		// Check for DMA Transfer
-		if (HL == 0xFF46) { mem->DMATransfer(); }
+		OPCodeStep = 1;
+		++cyclesRemaining;
 		break;
 	case 117:
-		copyReg8(getHLMemory(), L);
-		// Check for DMA Transfer
-		if (HL == 0xFF46) { mem->DMATransfer(); }
+		OPCodeStep = 1;
+		++cyclesRemaining;
 		break;
 	case 118:
 		// Halt CPU if an interrupt is not pending
@@ -442,9 +433,8 @@ void GBCPU::processUnprefixedOPCode() {
 		cyclesRemaining += 3;
 		break;
 	case 119:
-		copyReg8(getHLMemory(), A);
-		// Check for DMA Transfer
-		if (HL == 0xFF46) { mem->DMATransfer(); }
+		OPCodeStep = 1;
+		++cyclesRemaining;
 		break;
 	case 120:
 		copyReg8(A, B);
@@ -465,7 +455,8 @@ void GBCPU::processUnprefixedOPCode() {
 		copyReg8(A, L);
 		break;
 	case 126:
-		copyReg8(A, getHLMemory());
+		OPCodeStep = 1;
+		++cyclesRemaining;
 		break;
 	case 127:
 		copyReg8(A, A);
@@ -489,7 +480,8 @@ void GBCPU::processUnprefixedOPCode() {
 		addToA(L);
 		break;
 	case 134:
-		addToA(getHLMemory());
+		addToA(mem->read(HL));
+		++cyclesRemaining;
 		break;
 	case 135:
 		addToA(A);
@@ -513,7 +505,8 @@ void GBCPU::processUnprefixedOPCode() {
 		addToAWithCarry(L);
 		break;
 	case 142:
-		addToAWithCarry(getHLMemory());
+		addToAWithCarry(mem->read(HL));
+		++cyclesRemaining;
 		break;
 	case 143:
 		addToAWithCarry(A);
@@ -537,7 +530,8 @@ void GBCPU::processUnprefixedOPCode() {
 		subtractFromA(L);
 		break;
 	case 150:
-		subtractFromA(getHLMemory());
+		subtractFromA(mem->read(HL));
+		++cyclesRemaining;
 		break;
 	case 151:
 		subtractFromA(A);
@@ -561,7 +555,8 @@ void GBCPU::processUnprefixedOPCode() {
 		subtractFromAWithCarry(L);
 		break;
 	case 158:
-		subtractFromAWithCarry(getHLMemory());
+		subtractFromAWithCarry(mem->read(HL));
+		++cyclesRemaining;
 		break;
 	case 159:
 		subtractFromAWithCarry(A);
@@ -585,7 +580,8 @@ void GBCPU::processUnprefixedOPCode() {
 		andA(L);
 		break;
 	case 166:
-		andA(getHLMemory());
+		andA(mem->read(HL));
+		++cyclesRemaining;
 		break;
 	case 167:
 		andA(A);
@@ -609,7 +605,8 @@ void GBCPU::processUnprefixedOPCode() {
 		xorA(L);
 		break;
 	case 174:
-		xorA(getHLMemory());
+		xorA(mem->read(HL));
+		++cyclesRemaining;
 		break;
 	case 175:
 		xorA(A);
@@ -633,7 +630,8 @@ void GBCPU::processUnprefixedOPCode() {
 		orA(L);
 		break;
 	case 182:
-		orA(getHLMemory());
+		orA(mem->read(HL));
+		++cyclesRemaining;
 		break;
 	case 183:
 		orA(A);
@@ -657,7 +655,8 @@ void GBCPU::processUnprefixedOPCode() {
 		compareA(L);
 		break;
 	case 190:
-		compareA(getHLMemory());
+		compareA(mem->read(HL));
+		++cyclesRemaining;
 		break;
 	case 191:
 		compareA(A);
@@ -783,9 +782,8 @@ void GBCPU::processUnprefixedOPCode() {
 		fillFromStack(H, L);
 		break;
 	case 226:
-		copyReg8(getHighMemory(C), A);
-		// Check for DMA Transfer
-		if (C == 0x0046) { mem->DMATransfer(); }
+		mem->write(0xFF00 + C, A);
+		cyclesRemaining += 2;
 		break;
 	case 229:
 		pushToStack(H, L);
@@ -800,7 +798,8 @@ void GBCPU::processUnprefixedOPCode() {
 		++cyclesRemaining;
 		break;
 	case 232:
-		addToSP();
+		OPCodeStep = 1;
+		++cyclesRemaining;
 		break;
 	case 233:
 		jump(HL, 1);
@@ -829,7 +828,8 @@ void GBCPU::processUnprefixedOPCode() {
 		fillFromStack(A, F);
 		break;
 	case 242:
-		copyReg8(A, getHighMemory(C));
+		copyReg8(A, mem->read(0xFF00 + C));
+		++cyclesRemaining;
 		break;
 	case 243:
 		DI();

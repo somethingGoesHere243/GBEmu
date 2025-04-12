@@ -1,13 +1,19 @@
 #include "Timer.h"
 
 Timer::Timer(GBMemory* mem) : mem {mem},
-							  DIV{ mem->read(0xFF04) },
-							  TIMA{ mem->read(0xFF05) },
-							  TMA{ mem->read(0xFF06) },
-							  TAC{ mem->read(0xFF07) }{
+							  DIV{ mem->PPURead(0xFF04) },
+							  TIMA{ mem->PPURead(0xFF05) },
+							  TMA{ mem->PPURead(0xFF06) },
+							  TAC{ mem->PPURead(0xFF07) } {
 }
 
 void Timer::update() {
+	// Check if timer needs to be reset
+	if (mem->resetTimer) {
+		ticks = 0;
+		mem->resetTimer = false;
+	}
+
 	++ticks;
 
 	// Check if TIMA overflowed on previous cycle
@@ -23,7 +29,7 @@ void Timer::update() {
 	}
 
 	// DIV incremented every 256 ticks
-	if (ticks % 256 == 0) {
+	if (ticks % 64 == 0) {
 		++DIV;
 	}
 
@@ -31,16 +37,16 @@ void Timer::update() {
 	int cyclesPerIncrement;
 	switch (TAC & 3) {
 	case 0:
-		cyclesPerIncrement = 1024;
+		cyclesPerIncrement = 256;
 		break;
 	case 1:
-		cyclesPerIncrement = 16;
+		cyclesPerIncrement = 4;
 		break;
 	case 2:
-		cyclesPerIncrement = 64;
+		cyclesPerIncrement = 16;
 		break;
 	default:
-		cyclesPerIncrement = 256;
+		cyclesPerIncrement = 64;
 		break;
 	}
 
@@ -49,7 +55,7 @@ void Timer::update() {
 		++TIMA;
 		// Check for overflow of TIMA
 		if (TIMA == 0) {
-			TIMAOverflowed = true;	
+			TIMAOverflowed = true;
 		}
 	}
 }

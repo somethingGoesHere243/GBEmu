@@ -1,0 +1,145 @@
+#pragma once
+#include <stdint.h>
+#include <iostream>
+
+// GB Memory consists of memory addressed from 0000 to FFFF (2^16-1)
+// Only addresses 8000 - 9FFF and C000 - FFFF are stored on the GB itself
+using address = unsigned short;
+constexpr unsigned int VRAMSize = 0x2000; // 8000 - 9FFF
+constexpr unsigned int WRamSize = 0x2000; // C000 - DFFF
+constexpr unsigned int OAMSize = 0x00A0; // FE00 - FE9F
+constexpr unsigned int IORegisterCount = 0x0080; // FF00 - FF7F
+constexpr unsigned int HRAMSize = 0x007F; // FE80 - FFFE
+
+// Each address points to 8 bits (1 byte) of data
+using byte = uint8_t;
+
+// GB Cartridges can contain up to 512 ROM Banks each 16KiB in size
+constexpr unsigned int maxROMBanks = 512;
+constexpr unsigned int ROMBankSize = 0x4000;
+
+class ROMBank {
+private:
+	byte data[ROMBankSize]{ 0 };
+
+public:
+	byte& read(address addr) { return data[addr]; }
+
+	// Only for use when reading from ROM Files
+	void write(address addr, byte val) { data[addr] = val; }
+};
+
+// And up to 16 RAM Banks each 8KiB in size
+constexpr unsigned int maxRAMBanks = 16;
+constexpr unsigned int RAMBankSize = 0x2000;
+
+class RAMBank {
+private:
+	byte data[RAMBankSize]{ 0 };
+
+public:
+	byte& read(address addr) { return data[addr]; }
+
+	void write(address addr, byte val) { data[addr] = val; }
+};
+
+// Number of ROM Banks and RAM Banks used will depend on the MBC inside the loaded cartridge
+enum MBC {
+	None,
+	MBC1,
+	MBC2,
+	MBC3,
+	MBC5,
+	MBC6,
+	MBC7,
+	MMM01,
+	M161,
+	HuC1,
+	HuC3,
+};
+
+class GBMemory {
+private:
+	// Memory mapped in the following way
+	// 0000 - 3FFF: 16KiB ROM Bank 0          (From Cartridge)
+	// 4000 - 7FFF: 16Kib ROM Bank 1          (From Cartridge) 
+	// 8000 - 9FFF: 8 KiB Video RAM           (CGB Mode have switchable banks)
+	// A000 - BFFF: 8 KiB External RAM	      (From Cartridge)
+	// C000 - CFFF: 4 KiB Work RAM
+	// D000 - DFFF: 4 KiB Work RAM            (CGB Mode have switchable banks)
+	// E000 - FDFF: Mirror of C000 - DDFF     (Use Prohibited => Not Emulated)
+	// FE00 - FE9F: Object-Attribute-Memory 
+	// FEA0 - FEFF: Unused                    (Use Prohibited => Not Emulated)
+	// FF00 - FF7F: I/O Registers
+	// FF80 - FFFE: High RAM
+	// FFFF - FFFF: Interrupt Enable Register
+
+	byte VRAM[VRAMSize]{ 0 };
+	byte WRAM[WRamSize]{ 0 };
+	byte OAM[OAMSize]{ 0 };
+	byte IORegs[IORegisterCount]{ 0 };
+	byte HRAM[HRAMSize]{ 0 };
+	byte IntEnableReg{ 0 };
+
+	ROMBank ROMBanks[maxROMBanks];
+	RAMBank RAMBanks[maxRAMBanks];
+
+	// Actual number of ROM and RAM banks is determined by the inserted cartridge
+	int ROMBankCount{ 0 };
+	int RAMBankCount{ 0 };
+
+	// Have 2 active ROMBanks and 1 active RAM bank at any given time
+	int ROMBank0Index{ 0 };
+	int ROMBank1Index{ 1 };
+	int RAMBankIndex{ 0 };
+
+	// Value to be returned if attempting to read an inaccesible address
+	byte garbageVal{ 0xFF };
+
+	// Additional cartridge features are enabled dependant on the MBC
+	MBC MBCType{ None };
+	
+	// MBC's come with built in registers, their functionalities differ between MBC's
+	// Details found here: https://gbdev.io/pandocs/MBCs.html
+	byte MBCReg1;
+	byte MBCReg2;
+	byte MBCReg3;
+	byte MBCReg4;
+
+public:
+	// Current Mode of the PPU can lock certain parts of memory
+	int PPUMode{ 0 }; // Mode is 0, 1, 2, or 3
+
+	// Flag to set whenever DIV register (0xFF04) is written to so that timer can be reset
+	bool resetTimer{ false };
+
+	// Sets initial values for some hardware registers (as specified in the CGB boot rom)
+	void init();
+
+	// Loads a given ROM into memory
+	void loadROM(std::string filePath);
+
+	// Returns the value inside a given RAM Address (if it is currently accessible)
+	byte read(address addr);
+
+	// Returns the value inside a given RAM Address (no check for accessibility)
+	// Returns a reference so the caller can freely change values stored in memory
+	byte& PPURead(address addr);
+
+	// Writes a value to a given address (if it is currently accessible)
+	void write(address addr, byte newVal);
+
+	// Performs an OAM DMA Transfer based on the value stored in address 0xFF46
+	void DMATransfer();
+
+	// Attempting to read/write an address in the range 0x0000 - 0x7FFF or the range 0xA000 - 0xBFFF will behave differently depending on the MBC
+	byte MBCRead(address addr);
+	void MBCWrite(address addr, byte newVal);
+
+	// Various functions to be used dependant on the current MBC
+	byte noMBCRead(address addr);
+	void noMBCWrite(address addr, byte newVal);
+
+	byte MBC1Read(address addr);
+	void MBC1Write(address addr, byte newVal);
+};

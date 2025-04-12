@@ -62,41 +62,7 @@ void GBCPU::incReg8(byte& reg) {
 	++cyclesRemaining;
 }
 
-byte& GBCPU::getBCMemory() {
-	// Combine B and C register values
-	address BC = (B << 8) + C;
-	++cyclesRemaining;
-
-	return mem->read(BC);
-}
-
-byte& GBCPU::getDEMemory() {
-	// Combine H and L register values
-	address DE = (D << 8) + E;
-	++cyclesRemaining;
-
-	return mem->read(DE);
-}
-
-byte& GBCPU::getHLMemory() {
-	// Combine H and L register values
-	address HL = (H << 8) + L;
-	++cyclesRemaining;
-
-	return mem->read(HL);
-}
-
-byte& GBCPU::getHighMemory(byte& reg) {
-	// Most significant bits are $FF00
-	constexpr address FF = 65280;
-	address target = FF + reg;
-
-	++cyclesRemaining;
-
-	return mem->read(target);
-}
-
-void GBCPU::copyReg8(byte& destReg, byte& sourceReg) {
+void GBCPU::copyReg8(byte& destReg, byte sourceReg) {
 	destReg = sourceReg;
 	++cyclesRemaining;
 }
@@ -181,7 +147,7 @@ void GBCPU::addToSP() {
 	// Set flags (Z & N flags set to 0)
 	F = carryFlag * C_FLAG + halfCarryFlag * H_FLAG;
 
-	cyclesRemaining += 4;
+	cyclesRemaining += 3;
 }
 
 void GBCPU::loadHLWithEditedSP() {
@@ -426,7 +392,7 @@ void GBCPU::invertCarry() {
 	++cyclesRemaining;
 }
 
-void GBCPU::addToA(byte& reg) {
+void GBCPU::addToA(byte reg) {
 	// Check for overflow from bit 3
 	bool halfCarryFlag = ((A & 15) + (reg & 15)) > 15;
 
@@ -444,7 +410,7 @@ void GBCPU::addToA(byte& reg) {
 	++cyclesRemaining;
 }
 
-void GBCPU::addToAWithCarry(byte& reg) {
+void GBCPU::addToAWithCarry(byte reg) {
 	// Retrieve current carry flag
 	bool carryFlag = F & C_FLAG;
 
@@ -466,7 +432,7 @@ void GBCPU::addToAWithCarry(byte& reg) {
 	++cyclesRemaining;
 }
 
-void GBCPU::subtractFromA(byte& reg) {
+void GBCPU::subtractFromA(byte reg) {
 	// Check if need to borrow from bit 4
 	bool halfCarryFlag = (reg & 15) > (A & 15);
 
@@ -484,7 +450,7 @@ void GBCPU::subtractFromA(byte& reg) {
 	++cyclesRemaining;
 }
 
-void GBCPU::subtractFromAWithCarry(byte& reg) {
+void GBCPU::subtractFromAWithCarry(byte reg) {
 	// Retrieve current carry flag
 	bool carryFlag = F & C_FLAG;
 
@@ -506,7 +472,7 @@ void GBCPU::subtractFromAWithCarry(byte& reg) {
 	++cyclesRemaining;
 }
 
-void GBCPU::andA(byte& reg) {
+void GBCPU::andA(byte reg) {
 	A = A & reg;
 
 	bool zeroFlag = (A == 0);
@@ -516,7 +482,7 @@ void GBCPU::andA(byte& reg) {
 	++cyclesRemaining;
 }
 
-void GBCPU::xorA(byte& reg) {
+void GBCPU::xorA(byte reg) {
 	A = A ^ reg;
 
 	bool zeroFlag = (A == 0);
@@ -526,7 +492,7 @@ void GBCPU::xorA(byte& reg) {
 	++cyclesRemaining;
 }
 
-void GBCPU::orA(byte& reg) {
+void GBCPU::orA(byte reg) {
 	A = A | reg;
 
 	bool zeroFlag = (A == 0);
@@ -536,7 +502,7 @@ void GBCPU::orA(byte& reg) {
 	++cyclesRemaining;
 }
 
-void GBCPU::compareA(byte& reg) {
+void GBCPU::compareA(byte reg) {
 	// Check if needed to borrow from bit 4
 	bool halfCarryFlag = (reg & 15) > (A & 15);
 
@@ -652,12 +618,15 @@ void GBCPU::update() {
 		}
 
 		// Check if partway thru processing of an OPCode
-		if (OPCodeStep > 0) {
+		if (OPCodeStep == 1) {
 			if (nextInstructionPrefixed) {
 				processPrefixedOPCode();
 			} else {
-				processLaterStep();
+				processOPCodeSecondStep();
 			}
+		}
+		else if (OPCodeStep == 2) {
+			processOPCodeThirdStep();
 		}
 		else {
 			// Get a new OPCode

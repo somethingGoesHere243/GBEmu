@@ -10,13 +10,10 @@ void GB::update(TileMap* tileMap) {
 
 	// PPU updates 4 times for each CPU Update
 	PPU.update(tileMap);
-	timer.update();
 
 	PPU.update(tileMap);
-	timer.update();
 
 	PPU.update(tileMap);
-	timer.update();
 
 	PPU.update(tileMap);
 	timer.update();
