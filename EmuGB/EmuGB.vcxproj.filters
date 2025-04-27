@@ -72,9 +72,6 @@
     <ClCompile Include="src\Timer.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="src\CPU\multiStepOPCodes.cpp">
-      <Filter>Source Files\CPU</Filter>
-    </ClCompile>
     <ClCompile Include="src\Debug\TileMap.cpp">
       <Filter>Source Files\Debug</Filter>
     </ClCompile>

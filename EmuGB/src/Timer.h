@@ -7,7 +7,7 @@ private:
 	GBMemory* mem;
 
 	// Internal clock of the timer (increments once every CPU cycle)
-	byte ticks{ 51 };
+	byte ticks{ 204 };
 
 	// Divider Register: Incremented once every 64 ticks
 	byte& DIV; // Address FF04
@@ -23,6 +23,8 @@ private:
 	// Bit 2 enables the incrementing of TIMA
 	byte& TAC; // Address FF07
 		
+	// Store value of bit selected by TAC on previous timer update
+	bool prevTACBit{false};
 
 	// Store whether or not an overflow occured in the TIMA register on the previous cycle
 	bool TIMAOverflowed{ false };

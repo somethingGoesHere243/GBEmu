@@ -8,22 +8,70 @@ GBPPU::GBPPU(GBMemory* mem, Screen* screen) : mem{ mem },
 											  SCY{ mem->PPURead(0xFF42) },
 											  SCX{ mem->PPURead(0xFF43) },
 											  LY{mem->PPURead(0xFF44)},
-											  LYC{mem->PPURead(0xFF45)} {}
+											  LYC{ mem->PPURead(0xFF45) },
+											  BGP{ mem->PPURead(0xFF47) },
+											  OBP0{ mem->PPURead(0xFF48) },
+											  OBP1{ mem->PPURead(0xFF49) },
+											  WY{ mem->PPURead(0xFF4A) },
+											  WX{mem->PPURead(0xFF4B)} {}
+
+// Gets a colour index from a pixel and its palette data
+int colourFromPalette(int pixel, byte palette) {
+	bool lsb;
+	bool msb;
+	switch (pixel) {
+	case 0:
+		// Use bits 0 and 1 of the palette
+		lsb = palette & 0b00000001;
+		msb = palette & 0b00000010;
+		break;
+	case 1:
+		// Use bits 2 and 3 of the palette
+		lsb = palette & 0b00000100;
+		msb = palette & 0b00001000;
+		break;
+	case 2:
+		// Use bits 4 and 5 of the palette
+		lsb = palette & 0b00010000;
+		msb = palette & 0b00100000;
+		break;
+	case 3:
+		// Use bits 6 and 7 of the palette
+		lsb = palette & 0b01000000;
+		msb = palette & 0b10000000;
+		break;
+	default:
+		std::cout << "INVALID PIXEL COLOUR RECEIVED" << std::endl;
+	}
+	return lsb + 2 * msb;
+}
 
 void GBPPU::setTile() {
 	// Tile map is determined by LCD Control bits
 	int tileMap{ 0 };
 
-	// Check bit 3 of LCDC
-	if (LCDC & 8) {
-		tileMap = 1;
+	int x;
+	int y;
+
+	// Check if tile is in a window
+	if (nextPixelIsWindow) {
+		// Tile map determined by LCDC bit 6
+		if (LCDC & 0b01000000) {
+			tileMap = 1;
+		}
+		// Calculate coordinates of tile within map
+		x = backgroundFIFO.xPos & 0x1F;
+		y = currWindowY / 8;
 	}
-	// TODO: Add check if pixel is inside a window
-
-	// Calculate coordinates of tile within map
-	int x = (backgroundFIFO.xPos + (SCX / 8)) & 0x1F;
-
-	int y = ((LY + SCY) & 0xFF) / 8;
+	else {
+		// Tile map determined by LCDC bit 3
+		if (LCDC & 0b00001000) {
+			tileMap = 1;
+		}
+		// Calculate coordinates of tile within map
+		x = (backgroundFIFO.xPos + (SCX / 8)) & 0x1F;
+		y = ((LY + SCY) & 0xFF) / 8;
+	}
 
 	// Get ID of tile of interest
 	address IDAddress = 0x9800 + 0x0400 * tileMap + 0x0020 * y + x;
@@ -32,8 +80,13 @@ void GBPPU::setTile() {
 
 void GBPPU::setTileDataLow() {
 	// Specific byte we want to read within the Tile data
-	byte offset = 2 * ((LY + SCY) % 8);
-
+	byte offset;
+	if (nextPixelIsWindow) {
+		offset = 2 * (currWindowY % 8);
+	}
+	else {
+		offset = 2 * ((LY + SCY) % 8);
+	}
 	// Determine which block of tiles we want to read data from
 	address tileBlock{ 0x9000 };
 	if (backgroundFIFO.currTileID & 128) {
@@ -48,7 +101,13 @@ void GBPPU::setTileDataLow() {
 
 void GBPPU::setTileDataHigh() {
 	// Specific byte we want to read within the Tile data
-	byte offset = 2 * ((LY + SCY) % 8);
+	byte offset;
+	if (nextPixelIsWindow) {
+		offset = 2 * (currWindowY % 8);
+	}
+	else {
+		offset = 2 * ((LY + SCY) % 8);
+	}
 
 	// Determine which block of tiles we want to read data from
 	address tileBlock{ 0x9000 };
@@ -80,7 +139,24 @@ bool GBPPU::pushPixels() {
 }
 
 void GBPPU::objSetTile() {
-	objectFIFO.currTileID = activeObj->tileIndex;
+	// If using 8x8 objects can just return the tileIndex
+	if (!(LCDC & 4)) {
+		objectFIFO.currTileID = activeObj->tileIndex;
+	}
+	else {
+		// For 8x16 objects need to decide which half of object we need
+		int currObjLine = activeObj->yPos - LY;
+		bool isTopHalf = currObjLine > 8;
+		bool isVerticallyFlipped = activeObj->Attributes & 0b01000000;
+		if (isTopHalf ^ isVerticallyFlipped) {
+			// Want least sig. bit of tileIndex to be 0
+			objectFIFO.currTileID = activeObj->tileIndex & ~0b00000001;
+		}
+		else {
+			// Want least sig. bit of tileIndex to be 1
+			objectFIFO.currTileID = activeObj->tileIndex | 1;
+		}
+	}
 }
 
 void GBPPU::objSetTileDataLow() {
@@ -155,10 +231,27 @@ bool GBPPU::objPushPixels() {
 }
 
 void GBPPU::drawPixel() {
+	// Check if next pixel to be drawn is inside the window
+		// Window activated by LCDC bit 5
+	if (windowActive && (LCDC & 0b00100000) && (pixelColumn >= WX - 7)) {
+		// On first pixel which this happens need to empty the FIFO
+		if (!nextPixelIsWindow) {
+			nextPixelIsWindow = true;
+			backgroundFIFO.reset();
+			backgroundFIFO.step = GET_TILE;
+		}
+	}
+	else {
+		nextPixelIsWindow = false;
+	}
+
 	// If there are at least 8 pixels in the FIFO we can draw pixels to the screen
 	// Cant draw whilst an object is being fetched
 	if (backgroundFIFO.pixelCount > 8 && !objectFIFOActive) {
 		int backgroundPixel = backgroundFIFO.popPixel();
+
+		// Convert backgroundPixel to a colour via the background palette
+		int backgroundColour = colourFromPalette(backgroundPixel, BGP);
 
 		// Check if pixel should be discarded
 		if (discardedPixelsThisRow < SCX % 8) {
@@ -170,12 +263,20 @@ void GBPPU::drawPixel() {
 		// Only attempt to draw object if bit 1 of LCDC is on
 		if ((LCDC & 2) && objectFIFO.pixelCount > 0) {
 			int objectPixel = objectFIFO.popPixel();
+			int objectColour;
+			// Check object palette (bit 4 of the attributes)
+			if (activeObj->Attributes & 0b00010000) {
+				objectColour = colourFromPalette(objectPixel, OBP1);
+			}
+			else {
+				objectColour = colourFromPalette(objectPixel, OBP0);
+			}
 
 			// Mix with background pixel
 			bool backgroundPriority = activeObj->Attributes & 128; //7th Bit
 				if (objectPixel != 0 &&
-					(!backgroundPriority || backgroundPixel == 0)) {
-					backgroundPixel = objectPixel;
+					(!backgroundPriority || backgroundColour == 0)) {
+					backgroundColour = objectColour;
 			}
 		}
 
@@ -183,7 +284,7 @@ void GBPPU::drawPixel() {
 		int r{ 155 };
 		int g{ 188 };
 		int b{ 15 };
-		switch (backgroundPixel) {
+		switch (backgroundColour) {
 		case 1:
 			r = 139;
 			g = 172;
@@ -213,7 +314,33 @@ void GBPPU::drawPixel() {
 		if (pixelColumn == 160) {
 			// Begin HBlank mode (PPUMode goes from 3 to 0)
 			STAT -= 3;
+
+			// Enable HBlank interrupt source
+			activeSTATSources = activeSTATSources | 0b00001000;
+			checkForSTATInterrupt(false);
 		}
+	}
+}
+
+void GBPPU::checkForSTATInterrupt(bool VBlankStarted) {
+	// Store old value of isSTATInterrupt
+	bool prevInterrupt = isSTATInterrupt;
+	isSTATInterrupt = false;
+
+	// Check if a STAT interrupt should be requested this cycle
+	// i.e Check if any of bits 3,4,5,6 are set in both the STAT reg. and the activeSTATSources
+	isSTATInterrupt = activeSTATSources & STAT & 0b01111000;
+
+	// If a VBlank just started then can also trigger an interrupt due to PPUMode 2
+	if (VBlankStarted) {
+		isSTATInterrupt = isSTATInterrupt || (STAT & 0b00100000);
+	}
+
+	// If an interrupt is being requested set bit 1 of the IF register
+	// (Only if an interrupt wasnt requested in the previous cycle)
+	if (!prevInterrupt && isSTATInterrupt) {
+		byte currentIF = mem->PPURead(0xFF0F);
+		mem->write(0xFF0F, currentIF | 2);
 	}
 }
 
@@ -224,12 +351,21 @@ void GBPPU::update(TileMap* debugTileMap) {
 		LY = 0;
 		pixelColumn = 0;
 		dotsOnCurrentRow = 4;
+		discardedPixelsThisRow = 0;
 		dotsToIdle = 0;
 		isSTATInterrupt = false;
 		justTurnedOn = true;
 
+		currWindowY = 0;
+		windowActive = false;
+		nextPixelIsWindow = false;
+
 		// PPUMode set to 0
 		STAT = STAT - (STAT & 3);
+
+		// Unset STAT sources for PPUModes 1 and 2
+		activeSTATSources = activeSTATSources & ~0b00110000;
+		checkForSTATInterrupt(false);
 
 		return;
 	}
@@ -237,9 +373,14 @@ void GBPPU::update(TileMap* debugTileMap) {
 	// Set bit 2 of the STAT register if LYC matches LY
 	if (LYC == LY) {
 		STAT = STAT | 4;
+		// Set bit 6 of the STAT sources
+		activeSTATSources = activeSTATSources | 0b01000000;
+		checkForSTATInterrupt(false);
 	}
 	else {
 		STAT = STAT - (STAT & 4);
+		// Unset bit 6 of the STAT sources
+		activeSTATSources = activeSTATSources & ~0b01000000;
 	}
 
 	// Check if PPU has just been enabled (Enters a HBlank for 76 dots)
@@ -250,6 +391,10 @@ void GBPPU::update(TileMap* debugTileMap) {
 			// PPUMode set to 3
 			STAT = STAT - (STAT & 3) + 3;
 
+			// Unset any STAT sources related to PPU Mode (only keep bit 6)
+			activeSTATSources = activeSTATSources & 0b01000000;
+			checkForSTATInterrupt(false);
+
 			backgroundFIFO.reset();
 			justTurnedOn = false;
 		}
@@ -259,32 +404,6 @@ void GBPPU::update(TileMap* debugTileMap) {
 	// Get current PPU Mode from the 2 least sig bits of STAT register
 	byte PPUMode = STAT & 3;
 	mem->PPUMode = PPUMode;
-
-	// Store old value of isSTATInterrupt
-	bool prevInterrupt = isSTATInterrupt;
-	isSTATInterrupt = false;
-
-	// Check if a STAT interrupt should be requested this cycle
-	// 4 conditions for an interrupt to be requested:
-	
-	// If bit 3 of the STAT register set and in mode 0
-	isSTATInterrupt = (STAT & 8) && (PPUMode == 0);
-
-	// If bit 4 of the STAT register set and in mode 1
-	isSTATInterrupt = isSTATInterrupt || ((STAT & 16) && (PPUMode == 1));
-
-	// If bit 5 of the STAT register set and in mode 2
-	isSTATInterrupt = isSTATInterrupt || ((STAT & 32) && (PPUMode == 2));
-
-	// If bits 2 and 6 of the STAT register set
-	isSTATInterrupt = isSTATInterrupt || ((STAT & 64) && (STAT & 4));
-
-	// If an interrupt is being requested set bit 1 of the IF register
-	// (Only if an interrupt wasnt requested in the previous cycle)
-	if (!prevInterrupt && isSTATInterrupt) {
-		byte currentIF = mem->PPURead(0xFF0F);
-		mem->write(0xFF0F, currentIF | 2);
-	}
 
 	// HBlank Mode
 	if (PPUMode == 0) {
@@ -311,6 +430,10 @@ void GBPPU::update(TileMap* debugTileMap) {
 				byte currentIF = mem->PPURead(0xFF0F);
 				mem->write(0xFF0F, currentIF | 1);
 
+				// Disable HBlank interrupt source and enable VBlank
+				activeSTATSources = (activeSTATSources & ~0b00001000) | 0b00010000;
+				checkForSTATInterrupt(true);
+
 				// Render image to screen
 				screen->loadFromSurface();
 				screen->render();
@@ -321,6 +444,16 @@ void GBPPU::update(TileMap* debugTileMap) {
 			else {
 				// PPUMode set to 2
 				STAT += 2;
+
+				// Disable HBlank interrupt source and enable OAM
+				activeSTATSources = (activeSTATSources & ~0b00001000) | 0b00100000;
+				checkForSTATInterrupt(false);
+
+				// Increment window line counter if window is active
+				if (nextPixelIsWindow) {
+					++currWindowY;
+					nextPixelIsWindow = false;
+				}
 			}
 		}
 	}
@@ -339,9 +472,19 @@ void GBPPU::update(TileMap* debugTileMap) {
 			// Set PPUMode to 2
 			++STAT;
 
+			// Disable VBlank interrupt source and enable OAM
+			activeSTATSources = (activeSTATSources & ~0b00010000) | 0b00100000;
+			checkForSTATInterrupt(false);
+
 			// Reset LY and pixel column
 			LY = 0;
 			pixelColumn = 0;
+
+			// Deactivate window
+			currWindowY = 0;
+			windowActive = false;
+			nextPixelIsWindow = false;
+
 
 			// Reset dots counter
 			dotsOnCurrentRow = 0;
@@ -368,10 +511,6 @@ void GBPPU::update(TileMap* debugTileMap) {
 				byte xPos = mem->PPURead(OAMEntryStartPoint + 1);
 
 				byte TileIndex = mem->PPURead(OAMEntryStartPoint + 2);
-				// If object height is 16 ignore bit 0 of the tile index
-				if (objectHeight == 16) {
-					TileIndex = TileIndex - (TileIndex & 1);
-				}
 
 				byte Attributes = mem->PPURead(OAMEntryStartPoint + 3);
 
@@ -384,8 +523,18 @@ void GBPPU::update(TileMap* debugTileMap) {
 		// Mode lasts for 80 dots
 		if (dotsOnCurrentRow == 80) {
 			++STAT;
+
+			// Disable OAM interrupt source
+			activeSTATSources = activeSTATSources & ~0b00100000;
+			checkForSTATInterrupt(false);
+
 			// Clear Pixel FIFO's
 			backgroundFIFO.reset();
+
+			// Check if window begins on this line
+			if (WY == LY) {
+				windowActive = true;
+			}
 		}
 	}
 
@@ -430,7 +579,7 @@ void GBPPU::update(TileMap* debugTileMap) {
 					objSetTileDataHigh();
 					++dotsOnCurrentRow;
 					dotsToIdle = 1;
-					objectFIFO.step = SLEEP;
+					objectFIFO.step = PUSH;
 					break;
 				case SLEEP:
 					++dotsOnCurrentRow;
@@ -445,7 +594,6 @@ void GBPPU::update(TileMap* debugTileMap) {
 
 						// Deactivate object FIFO
 						objectFIFOActive = false;
-						return;
 					}
 
 					++dotsOnCurrentRow;
@@ -453,9 +601,18 @@ void GBPPU::update(TileMap* debugTileMap) {
 				}
 			}
 			else {
-
 				// Otherwise perform background fetch
 				switch (backgroundFIFO.step) {
+				case PUSH:
+					// Attempt to push pixels to FIFO 
+					if (!pushPixels()) {
+						// Failed to push pixels to FIFO so try again on next dot
+						++dotsOnCurrentRow;
+						break;
+					}
+					// Successfully pushed pixels so continue to next FIFO step (on same dot)
+					backgroundFIFO.step = GET_TILE;
+					[[fallthrough]];
 				case GET_TILE:
 					setTile();
 					++dotsOnCurrentRow;
@@ -472,20 +629,12 @@ void GBPPU::update(TileMap* debugTileMap) {
 					setTileDataHigh();
 					++dotsOnCurrentRow;
 					dotsToIdle = 1;
-					backgroundFIFO.step = SLEEP;
+					backgroundFIFO.step = PUSH;
 					break;
 				case SLEEP:
 					++dotsOnCurrentRow;
 					dotsToIdle = 1;
 					backgroundFIFO.step = PUSH;
-					break;
-				case PUSH:
-					// Attempt to push pixels to FIFO 
-					if (pushPixels()) {
-						// Successfully pushed pixels so change FIFO step
-						backgroundFIFO.step = GET_TILE;
-					}
-					++dotsOnCurrentRow;
 					break;
 				}
 			}

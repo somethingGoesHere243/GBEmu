@@ -9,7 +9,7 @@ InterruptHandler::InterruptHandler(GBCPU* CPU, GBPPU* PPU, GBMemory* mem) : CPU{
 
 void InterruptHandler::update() {
 	// Interrupts can only occur if the IME CPU flag is set and CPU is ready for its next instruction
-	if (CPU->IME && CPU->cyclesRemaining == 0) {
+	if (CPU->IME && CPU->cyclesRemaining == 0 && !CPU->nextInstructionPrefixed) {
 		// Only one interrupt can be called per update
 		// Least significant bits in the IE / IF registers take higher priority
 		if ((IE & 1) && (IF & 1)) {
@@ -18,11 +18,10 @@ void InterruptHandler::update() {
 			CPU->IME = 0;
 			IF -= 1;
 
-			// Ensure next instruction wont be interpretted as prefixed
-			CPU->nextInstructionPrefixed = false;
-
 			// Perform an unconditional call to the interrupt handler address 
 			CPU->conditionalCall(0x0040, 1);
+			CPU->OPCode = 0;
+			CPU->OPCodeStep = 0;
 
 			// An additional 2 cycles are spent in a wait state
 			CPU->cyclesRemaining += 2;
@@ -32,9 +31,9 @@ void InterruptHandler::update() {
 			CPU->IME = 0;
 			IF -= 2;
 
-			CPU->nextInstructionPrefixed = false;
-
 			CPU->conditionalCall(0x0048, 1);
+			CPU->OPCode = 0;
+			CPU->OPCodeStep = 0;
 
 			CPU->cyclesRemaining += 2;
 		}
@@ -43,9 +42,9 @@ void InterruptHandler::update() {
 			CPU->IME = 0;
 			IF -= 4;
 
-			CPU->nextInstructionPrefixed = false;
-
 			CPU->conditionalCall(0x0050, 1);
+			CPU->OPCode = 0;
+			CPU->OPCodeStep = 0;
 
 			CPU->cyclesRemaining += 2;
 		}
@@ -54,9 +53,9 @@ void InterruptHandler::update() {
 			CPU->IME = 0;
 			IF -= 8;
 
-			CPU->nextInstructionPrefixed = false;
-
 			CPU->conditionalCall(0x0058, 1);
+			CPU->OPCode = 0;
+			CPU->OPCodeStep = 0;
 
 			CPU->cyclesRemaining += 2;
 		}
@@ -65,9 +64,9 @@ void InterruptHandler::update() {
 			CPU->IME = 0;
 			IF -= 16;
 
-			CPU->nextInstructionPrefixed = false;
-
 			CPU->conditionalCall(0x0060, 1);
+			CPU->OPCode = 0;
+			CPU->OPCodeStep = 0;
 
 			CPU->cyclesRemaining += 2;
 		}

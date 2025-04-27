@@ -37,7 +37,7 @@ void GBMemory::init() {
 	IORegs[0x41] = 0x85;
 	IORegs[0x42] = 0x00;
 	IORegs[0x43] = 0x00;
-	IORegs[0x44] = 0x91;
+	IORegs[0x44] = 0x90;
 	IORegs[0x45] = 0x00;
 	IORegs[0x47] = 0xFC;
 	IORegs[0x4A] = 0x00;
@@ -79,7 +79,7 @@ void GBMemory::loadROM(std::string filePath) {
 	case 0x03:
 		MBCType = MBC1;
 		// Initialise any MBC registers which don't default to 0
-		MBCReg2 = 1;
+		MBCRegs[1] = 1;
 		break;
 	case 0x05:
 	case 0x06:
@@ -191,12 +191,16 @@ byte GBMemory::read(address addr) {
 		return WRAM[addr - 0xC000];
 	}
 	else if (addr < 0xFE00) {
-		// Unemulated Echo Ram
-		return 0xFF;
+		// Echo of the above WRAM
+		return WRAM[addr - 0xE000];
 	}
 	else if (addr < 0xFEA0) {
 		// OAM disabled in PPUModes 2 & 3
 		if (PPUMode == 3 || PPUMode == 2) {
+			return 0xFF;
+		}
+		// OAM also disabled during DMA Transfers
+		if (isDMATransfer) {
 			return 0xFF;
 		}
 		return OAM[addr - 0xFE00];
@@ -239,8 +243,8 @@ byte& GBMemory::PPURead(address addr) {
 		return WRAM[addr - 0xC000];
 	}
 	else if (addr < 0xFE00) {
-		// Unemulated Echo Ram
-		return garbageVal;
+		// Echo of the above WRAM
+		return WRAM[addr - 0xE000];
 	}
 	else if (addr < 0xFEA0) {
 		return OAM[addr - 0xFE00];
@@ -260,7 +264,7 @@ byte& GBMemory::PPURead(address addr) {
 	}
 }
 
-void GBMemory::write(address addr, byte newVal) {		
+void GBMemory::write(address addr, byte newVal) {	
 	if (addr < 0x8000) {
 		MBCWrite(addr, newVal);
 	}
@@ -278,14 +282,18 @@ void GBMemory::write(address addr, byte newVal) {
 		WRAM[addr - 0xC000] = newVal;
 	}
 	else if (addr < 0xFE00) {
-		// Unemulated Echo Ram
-		return;
+		WRAM[addr - 0xE000] = newVal;
 	}
 	else if (addr < 0xFEA0) {
 		// OAM disabled in PPUModes 2 & 3
 		if (PPUMode == 3 || PPUMode == 2) {
 			return;
 		}
+		// OAM also disabled during DMA Transfers
+		if (isDMATransfer) {
+			return;
+		}
+
 		OAM[addr - 0xFE00] = newVal;
 	}
 	else if (addr < 0xFF00) {
@@ -293,30 +301,7 @@ void GBMemory::write(address addr, byte newVal) {
 		return;
 	}
 	else if (addr < 0xFF80) {
-		// Any attempt to write to the DIV register resets its value to 0
-		if (addr == 0xFF04) {
-			IORegs[0x0004] = 0;
-			// Need to also reset the timer ticks to 0
-			resetTimer = true;
-			return;
-		}
-
-		// Attempting to write to LY register should be ignored
-		if (addr == 0xFF44) { 
-			return; 
-		}
-
-		// Palettes disabled in PPUMode 3
-		if (PPUMode == 3 && (addr == 0xFF47 || addr == 0xFF48 || addr == 0xFF49)) {
-			return;
-		}
-
-		// Attempting to write to address 0xFF46 triggers a DMA Transfer
-		if (addr == 0xFF46) {
-			DMATransfer();
-		}
-
-		IORegs[addr - 0xFF00] = newVal;
+		IOWrite(addr - 0xFF00, newVal);
 	}
 	else if (addr < 0xFFFF) {
 		HRAM[addr - 0xFF80] = newVal;
@@ -326,13 +311,152 @@ void GBMemory::write(address addr, byte newVal) {
 	}
 }
 
-void GBMemory::DMATransfer() {
-	// TODO: Lock most of memory during the transfer
-	// Value in 0xFF46 multiplied by 0x0100 specifies the source of the transfer
-	int source = IORegs[0x0046] * 0x0100;
-	for (int i = 0; i < 0x00A0; ++i) {
-		OAM[i] = read(source + i);
+void GBMemory::IOWrite(address addr, byte newVal) {
+	switch (addr) {
+	case 0x00:
+		// Only bits 4 & 5 of the JOYP register can be written to by the cpu
+		IORegs[0x00] = (IORegs[0x00] & 0b11001111) + (newVal & 0b00110000);
+		break;
+	case 0x02:
+		// Only bits 0, 1 & 7 of the SC register can be written to by the cpu
+		IORegs[0x01] = (IORegs[0x01] & 0b01111100) + (newVal & 0b10000011);
+		break;
+	case 0x04:
+		// Any attempt to write to the DIV register resets its value to 0
+		IORegs[0x04] = 0;
+		// Need to also reset the timer ticks to 0
+		resetTimer = true;
+		break;
+	case 0x07:
+		// Only bits 0, 1 & 2 of the TAC register can be written to by the cpu
+		IORegs[0x07] = (IORegs[0x07] & 0b11111000) + (newVal & 0b00000111);
+		break;
+	case 0x0F:
+		// 3 most sig. bits of IF register are hardcoded to 1
+		IORegs[0x0F] = newVal | 0b11100000;
+		break;
+	case 0x10:
+		// Only bits 0 - 6 of the NR10 register can be written to by the cpu
+		IORegs[0x10] = (IORegs[0x10] & 0b10000000) + (newVal & 0b01111111);
+		break;
+	case 0x1A:
+		// Only bit 7 of the NR30 register can be written to by the cpu
+		IORegs[0x1A] = (IORegs[0x1A] & 0b01111111) + (newVal & 0b100000000);
+		break;
+	case 0x1C:
+		// Only bit 5 & 6 of the NR32 register can be written to by the cpu
+		IORegs[0x1C] = (IORegs[0x1C] & 0b10011111) + (newVal & 0b01100000);
+		break;
+	case 0x20:
+		// Only bits 0 - 5 of the NR41 register can be written to by the cpu
+		IORegs[0x20] = (IORegs[0x20] & 0b11000000) + (newVal & 0b00111111);
+		break;
+	case 0x23:
+		// Only bits 6 & 7 of the NR44 register can be written to by the cpu
+		IORegs[0x23] = (IORegs[0x23] & 0b00111111) + (newVal & 0b11000000);
+		break;
+	case 0x26:
+		// Only bits 0-3 & 7 of the NR52 register can be written to by the cpu
+		IORegs[0x26] = (IORegs[0x26] & 0b01110000) + (newVal & 0b10001111);
+		break;
+	case 0x41:
+		// Only bits 3 - 6 of the STAT register can be written to by the cpu
+		IORegs[0x41] = (IORegs[0x41] & 0b10000111) + (newVal & 0b01111000);
+		break;
+	case 0x44:
+		// Attempting to write to LY register should be ignored
+		break;
+	case 0x46:
+		BeginDMATransfer();
+		IORegs[0x46] = newVal;
+		break;
+	case 0x47:
+	case 0x48:
+	case 0x49:
+		// Palettes disabled in PPUMode 3
+		if (PPUMode != 3) {
+			IORegs[addr] = newVal;
+		}
+		break;
+	case 0x01:
+	case 0x05:
+	case 0x06:
+	case 0x11:
+	case 0x12:
+	case 0x13:
+	case 0x14:
+	case 0x16:
+	case 0x17:
+	case 0x18:
+	case 0x19:
+	case 0x1B:
+	case 0x1D:
+	case 0x1E:
+	case 0x21:
+	case 0x22:
+	case 0x24:
+	case 0x25:
+	case 0x31:
+	case 0x32:
+	case 0x33:
+	case 0x34:
+	case 0x35:
+	case 0x36:
+	case 0x37:
+	case 0x38:
+	case 0x39:
+	case 0x3A:
+	case 0x3B:
+	case 0x3C:
+	case 0x3D:
+	case 0x3E:
+	case 0x3F:
+	case 0x40:
+	case 0x42:
+	case 0x43:
+	case 0x45:
+	case 0x4A:
+	case 0x4B:
+		IORegs[addr] = newVal;
+		break;
+	// Otherwise have an unmapped registers
+	}
+}
+
+void GBMemory::update() {
+	// Check for DMA Transfers
+	if (currDMAStep <= 0xA0) {
+		DMATransferStep();
 	}
 
-	return;
+	// Check for a timer in cartridge
+	if (MBCType == 3) {
+		MBC3TimerTick();
+	}
+}
+
+// TODO: OAM DMA bus conflicts (https://github.com/Gekkio/mooneye-gb/issues/39)
+void GBMemory::BeginDMATransfer() {
+	currDMAStep = -1;
+}
+
+void GBMemory::DMATransferStep() {
+	// Wait one cycle before memory transfer begins
+	if (currDMAStep == -1) {
+		++currDMAStep;
+		return;
+	}
+	isDMATransfer = true;
+
+	if (currDMAStep == 0xA0) {
+		// DMA has been completed
+		isDMATransfer = false;
+		return;
+	}
+
+	// Value in 0xFF46 multiplied by 0x0100 specifies the source of the transfer
+	int source = IORegs[0x0046] * 0x0100;
+
+	OAM[currDMAStep] = PPURead(source + currDMAStep);
+	++currDMAStep;
 }

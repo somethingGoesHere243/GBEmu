@@ -88,6 +88,14 @@ void Screen::render() {
 	// Set rendering space
 	SDL_FRect renderQuad{ 0, 0, mWidth, mHeight };
 
+	int currFrameTime = SDL_GetTicks();
+	// Aiming for 60FPS 
+	constexpr int desiredFrameTime = 1000 / 60;
+	while (currFrameTime - lastFrameTime < desiredFrameTime) {
+		currFrameTime = SDL_GetTicks();
+	}
+	lastFrameTime = currFrameTime;
+
 	// Render to screen
 	SDL_RenderTexture(mRenderer, mTexture, nullptr, &renderQuad);
 

@@ -153,7 +153,6 @@
   <ItemGroup>
     <ClCompile Include="src\CPU\CPU.cpp" />
     <ClCompile Include="src\CPU\CPUTests.cpp" />
-    <ClCompile Include="src\CPU\multiStepOPCodes.cpp" />
     <ClCompile Include="src\CPU\prefixedOPCodes.cpp" />
     <ClCompile Include="src\CPU\unprefixedOPCodes.cpp" />
     <ClCompile Include="src\Debug\TileMap.cpp" />

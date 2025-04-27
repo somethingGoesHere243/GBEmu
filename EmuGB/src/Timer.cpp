@@ -28,34 +28,39 @@ void Timer::update() {
 		TIMAOverflowed = false;
 	}
 
-	// DIV incremented every 256 ticks
-	if (ticks % 64 == 0) {
+	// DIV equal to the ticks value Right-Shifted by 6
+	if (ticks % 256 == 0) {
 		++DIV;
 	}
 
 	// Frequency of incrementing TIMA is determined by bits 0 and 1 of TAC
-	int cyclesPerIncrement;
+	// TIMA is incremented when the chosen bit goes from a 1 to a 0
+	int incTIMABit;
 	switch (TAC & 3) {
 	case 0:
-		cyclesPerIncrement = 256;
+		incTIMABit = 1 << 9;
 		break;
 	case 1:
-		cyclesPerIncrement = 4;
+		incTIMABit = 1 << 3;
 		break;
 	case 2:
-		cyclesPerIncrement = 16;
+		incTIMABit = 1 << 5;
 		break;
 	default:
-		cyclesPerIncrement = 64;
+		incTIMABit = 1 << 7;
 		break;
 	}
 
 	// TIMA incremented only if bit 2 of TAC is set
-	if ((TAC & 4) && (ticks % cyclesPerIncrement == 0)) {
-		++TIMA;
-		// Check for overflow of TIMA
-		if (TIMA == 0) {
-			TIMAOverflowed = true;
+	if (TAC & 4) {
+		// TIMA incremented if chosen bit goes from 1 to 0
+		if (prevTACBit && !(ticks & incTIMABit)) {
+			++TIMA;
+			// Check for overflow of TIMA
+			if (TIMA == 0) {
+				TIMAOverflowed = true;
+			}
 		}
 	}
+	prevTACBit = ticks & incTIMABit;
 }

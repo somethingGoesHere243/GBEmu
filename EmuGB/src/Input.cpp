@@ -113,5 +113,5 @@ void Controller::update(GBMemory* mem) {
 			newJOYPVal = newJOYPVal - (newJOYPVal & 8);
 		}
 	}
-	mem->write(JOYP, newJOYPVal);
+	mem->JOYPWrite(newJOYPVal);
 }

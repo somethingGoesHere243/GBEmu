@@ -9,6 +9,7 @@ void initCPU(nlohmann::json& initialState, GBCPU& cpu) {
 	cpu.nextInstructionPrefixed = false;
 	cpu.IME = (int)initialState["ime"];
 	cpu.instructionsBeforeIMESet = 0;
+	cpu.isHalted = false;
 
 	cpu.tempBytePtr = nullptr;
 	cpu.tempByte = 0;

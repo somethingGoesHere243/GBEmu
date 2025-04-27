@@ -9,7 +9,7 @@ constexpr unsigned int VRAMSize = 0x2000; // 8000 - 9FFF
 constexpr unsigned int WRamSize = 0x2000; // C000 - DFFF
 constexpr unsigned int OAMSize = 0x00A0; // FE00 - FE9F
 constexpr unsigned int IORegisterCount = 0x0080; // FF00 - FF7F
-constexpr unsigned int HRAMSize = 0x007F; // FE80 - FFFE
+constexpr unsigned int HRAMSize = 0x007F; // FF80 - FFFE
 
 // Each address points to 8 bits (1 byte) of data
 using byte = uint8_t;
@@ -32,6 +32,9 @@ public:
 // And up to 16 RAM Banks each 8KiB in size
 constexpr unsigned int maxRAMBanks = 16;
 constexpr unsigned int RAMBankSize = 0x2000;
+
+// And up to 20 cartridge registers
+constexpr unsigned int maxCartRegs = 20;
 
 class RAMBank {
 private:
@@ -101,10 +104,10 @@ private:
 	
 	// MBC's come with built in registers, their functionalities differ between MBC's
 	// Details found here: https://gbdev.io/pandocs/MBCs.html
-	byte MBCReg1;
-	byte MBCReg2;
-	byte MBCReg3;
-	byte MBCReg4;
+	byte MBCRegs[maxCartRegs]{ 0 };
+
+	// MBC's with timers built in need to keep track of their ticks
+	int MBCTicks{ 0 };
 
 public:
 	// Current Mode of the PPU can lock certain parts of memory
@@ -112,6 +115,12 @@ public:
 
 	// Flag to set whenever DIV register (0xFF04) is written to so that timer can be reset
 	bool resetTimer{ false };
+
+	// Keep track of current step in DMA transfer (if one is occuring)
+	int currDMAStep{ 0xA0 };
+
+	// Flag to set when a DMA Transfer is ongoing
+	bool isDMATransfer{ false };
 
 	// Sets initial values for some hardware registers (as specified in the CGB boot rom)
 	void init();
@@ -129,8 +138,18 @@ public:
 	// Writes a value to a given address (if it is currently accessible)
 	void write(address addr, byte newVal);
 
+	// Writes a value to an IO register (many of these have bits which are read-only)
+	void IOWrite(address addr, byte newVal);
+
+	// Writes a value to the JOYP register (only called by the input controller)
+	void JOYPWrite(byte newVal) { IORegs[0x00] = newVal; }
+
+	// Update the current state of the Memory (step thru DMA, update timer on cartridge)
+	void update();
+
 	// Performs an OAM DMA Transfer based on the value stored in address 0xFF46
-	void DMATransfer();
+	void BeginDMATransfer();
+	void DMATransferStep();
 
 	// Attempting to read/write an address in the range 0x0000 - 0x7FFF or the range 0xA000 - 0xBFFF will behave differently depending on the MBC
 	byte MBCRead(address addr);
@@ -142,4 +161,8 @@ public:
 
 	byte MBC1Read(address addr);
 	void MBC1Write(address addr, byte newVal);
+
+	byte MBC3Read(address addr);
+	void MBC3Write(address addr, byte newVal);
+	void MBC3TimerTick();
 };

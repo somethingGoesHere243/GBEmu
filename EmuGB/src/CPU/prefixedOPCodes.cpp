@@ -2,7 +2,133 @@
 
 #include <iostream>
 
+void GBCPU::RLC(byte& reg) {
+	// Set zero flag if register contains 0
+	bool zeroFlag = (reg == 0);
+
+	// Carry flag is set to most sig byte of reg
+	bool carryFlag = (reg >> 7) & 1;
+
+	// Rotate bits of reg
+	reg = 2 * reg + carryFlag;
+
+	// Update F register ( Z, N, H Flags all set to 0)
+	F = zeroFlag * Z_FLAG + carryFlag * C_FLAG;
+}
+
+void GBCPU::RRC(byte& reg) {
+	// Set zero flag if register contains 0
+	bool zeroFlag = (reg == 0);
+
+	// Carry flag is set to least sig byte of reg
+	bool carryFlag = reg & 1;
+
+	// Rotate bits of reg
+	reg = (carryFlag * (1 << 7)) + ((reg >> 1) & 127);
+
+	// Update F register ( N, H Flags both set to 0)
+	F = zeroFlag * Z_FLAG + carryFlag * C_FLAG;
+}
+
+void GBCPU::RL(byte& reg) {
+	// Carry flag is set to most sig byte of reg
+	bool carryFlag = (reg >> 7) & 1;
+
+	// Get current carry flag from F register
+	bool currCarry = F & C_FLAG;
+
+	// Rotate bits of reg
+	reg = 2 * reg + currCarry;
+
+	// Set zero flag if register contains 0
+	bool zeroFlag = (reg == 0);
+
+	// Update F register ( Z, N, H Flags all set to 0)
+	F = zeroFlag * Z_FLAG + carryFlag * C_FLAG;
+}
+
+void GBCPU::RR(byte& reg) {
+	// Carry flag is set to least sig byte of reg
+	bool carryFlag = reg & 1;
+
+	// Get current carry flag from F register
+	bool currCarry = F & C_FLAG;
+
+	// Rotate bits of reg
+	reg = (currCarry * (1 << 7)) + ((reg >> 1) & 127);
+
+	// Set zero flag if register contains 0
+	bool zeroFlag = (reg == 0);
+
+	// Update F register ( N, H Flags both set to 0)
+	F = zeroFlag * Z_FLAG + carryFlag * C_FLAG;
+}
+
+void GBCPU::SLA(byte& reg) {
+	// Most significant bit cycled into carry flag
+	bool carryFlag = reg & 128;
+	reg = (reg << 1);
+
+	// Set zero flag
+	bool zeroFlag = (reg == 0);
+
+	F = zeroFlag * Z_FLAG + carryFlag * C_FLAG;
+}
+
+void GBCPU::SRA(byte& reg) {
+	// Least significant bit cycled into carry flag
+	bool carryFlag = reg & 1;
+
+	// Most significant bit unchanged
+	byte mostSigBit = reg & 128;
+	reg = mostSigBit + ((reg >> 1) & 127);
+
+	// Set zero flag
+	bool zeroFlag = (reg == 0);
+
+	F = zeroFlag * Z_FLAG + carryFlag * C_FLAG;
+}
+
+void GBCPU::SRL(byte& reg) {
+	// Least significant bit cycled into carry flag
+	bool carryFlag = reg & 1;
+
+	// Shift other bits
+	reg = ((reg >> 1) & 127);
+
+	// Set zero flag
+	bool zeroFlag = (reg == 0);
+
+	F = zeroFlag * Z_FLAG + carryFlag * C_FLAG;
+}
+
+void GBCPU::swap(byte& reg) {
+	byte fourLeastSigBits = reg & 15;
+	byte fourMostSigBits = (reg >> 4) & 15;
+
+	reg = (fourLeastSigBits << 4) + fourMostSigBits;
+
+	bool zeroFlag = (reg == 0);
+	// All other flags set to 0
+	F = zeroFlag * Z_FLAG;
+}
+
+void GBCPU::testBit(byte& reg, int bitNum) {
+	bool zeroFlag = !(reg & (1 << bitNum));
+
+	F = (F & C_FLAG) + zeroFlag * Z_FLAG + H_FLAG;
+}
+
+void GBCPU::setBit(byte& reg, int bitNum, bool bitValue) {
+	byte bitToRemove = reg & (1 << bitNum);
+	byte bitToAdd = bitValue * (1 << bitNum);
+
+	reg = reg - bitToRemove + bitToAdd;
+}
+
 void GBCPU::processPrefixedOPCode() {
+	++cyclesRemaining;
+
 	// Gather 16 bit combined registers
 	address HL = (H << 8) + L;
 
@@ -11,12 +137,9 @@ void GBCPU::processPrefixedOPCode() {
 
 	// Register affected by OPCode is determined by 3 least sig. bits of OPCode
 	byte threeLeastSigBits = OPCode & 7;
-	byte* regPtr{ &A };
+	byte* regPtr{ &tempByte1 };
 	// If working with HL register OPCode must be split into 2 steps
 	if (OPCodeStep == 0) {
-		// Increment program counter
-		++PC;
-
 		switch (threeLeastSigBits) {
 		case 0:
 			regPtr = &B;
@@ -37,30 +160,22 @@ void GBCPU::processPrefixedOPCode() {
 			regPtr = &L;
 			break;
 		case 6:
-			// If executing a testBit OPCode then operation still performed in 1 step
-			if ((fiveMostSigBits >= 8) && (fiveMostSigBits <= 15)) {
-				tempByte = mem->read(HL);
-				regPtr = &tempByte;
-				++cyclesRemaining;
-			}
-			else {
-				// Need 2 steps for OPCode
-				OPCodeStep = 1;
-				++cyclesRemaining;
-				// Return early so that OPCode can be performed in 2 steps
-				return;
-			}
-			break;
+			OPCodeStep = 1;
+			return;
 		case 7:
 			regPtr = &A;
 			break;
 		}
 	}
-	else {
-		tempByte = mem->read(HL);
-		regPtr = &tempByte;
-		OPCodeStep = 0;
-		++cyclesRemaining;
+	else if (OPCodeStep == 1) {
+		tempByte1 = mem->read(HL);
+
+		// If executing a testBit OPCode then operation performed in 2 steps
+		// Otherwise takes 3 steps
+		if (!((fiveMostSigBits >= 8) && (fiveMostSigBits <= 15))) {
+			OPCodeStep = 2;
+			return;
+		}
 	}
 
 	switch (fiveMostSigBits) {
@@ -164,7 +279,8 @@ void GBCPU::processPrefixedOPCode() {
 
 	// If working with HL register OPCode must now write new value into memory
 	if (threeLeastSigBits == 6) {
-		mem->write(HL, tempByte);
+		mem->write(HL, tempByte1);
+		OPCodeStep = 0;
 	}
 
 	nextInstructionPrefixed = false;

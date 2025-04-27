@@ -15,7 +15,6 @@ int main() {
 
 	testGB->init();
 
-
 	// Keep Window open until closed
 	SDL_Event e;
 	bool quit = false;
@@ -37,6 +36,5 @@ int main() {
 		for (int i = 0; i < 17556; ++i) {
 			testGB->update(&debugTileMap);
 		}
-		Sleep(16);
 	}
 }
