@@ -84,6 +84,9 @@
     <ClCompile Include="src\Memory\MBC.cpp">
       <Filter>Source Files\Memory</Filter>
     </ClCompile>
+    <ClCompile Include="src\MenuHandler.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="src\CPU\CPU.h">
@@ -119,5 +122,16 @@
     <ClInclude Include="src\Memory\Memory.h">
       <Filter>Header Files\Memory</Filter>
     </ClInclude>
+    <ClInclude Include="src\MenuHandler.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\PPU\Menu.h">
+      <Filter>Header Files\PPU</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <ResourceCompile Include="src\PPU\Menu.rc">
+      <Filter>Source Files\PPU</Filter>
+    </ResourceCompile>
   </ItemGroup>
 </Project>

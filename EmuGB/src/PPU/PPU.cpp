@@ -15,6 +15,24 @@ GBPPU::GBPPU(GBMemory* mem, Screen* screen) : mem{ mem },
 											  WY{ mem->PPURead(0xFF4A) },
 											  WX{mem->PPURead(0xFF4B)} {}
 
+void GBPPU::reset() {
+	pixelColumn = 0;
+	currWindowY = 0;
+	windowActive = false;
+	nextPixelIsWindow = false;
+	discardedPixelsThisRow = 0;
+	dotsOnCurrentRow = 0;
+	dotsToIdle = 0;
+	activeSTATSources = 0;
+	isSTATInterrupt = false;
+	justTurnedOn = false;
+	currLineObjectsCount = 0;
+	objectFIFOActive = false;
+
+	backgroundFIFO.reset();
+	objectFIFO.reset();
+}
+
 // Gets a colour index from a pixel and its palette data
 int colourFromPalette(int pixel, byte palette) {
 	bool lsb;
@@ -231,20 +249,6 @@ bool GBPPU::objPushPixels() {
 }
 
 void GBPPU::drawPixel() {
-	// Check if next pixel to be drawn is inside the window
-		// Window activated by LCDC bit 5
-	if (windowActive && (LCDC & 0b00100000) && (pixelColumn >= WX - 7)) {
-		// On first pixel which this happens need to empty the FIFO
-		if (!nextPixelIsWindow) {
-			nextPixelIsWindow = true;
-			backgroundFIFO.reset();
-			backgroundFIFO.step = GET_TILE;
-		}
-	}
-	else {
-		nextPixelIsWindow = false;
-	}
-
 	// If there are at least 8 pixels in the FIFO we can draw pixels to the screen
 	// Cant draw whilst an object is being fetched
 	if (backgroundFIFO.pixelCount > 8 && !objectFIFOActive) {
@@ -254,7 +258,7 @@ void GBPPU::drawPixel() {
 		int backgroundColour = colourFromPalette(backgroundPixel, BGP);
 
 		// Check if pixel should be discarded
-		if (discardedPixelsThisRow < SCX % 8) {
+		if (!nextPixelIsWindow && discardedPixelsThisRow < SCX % 8) {
 			++discardedPixelsThisRow;
 			return;
 		}
@@ -344,7 +348,7 @@ void GBPPU::checkForSTATInterrupt(bool VBlankStarted) {
 	}
 }
 
-void GBPPU::update(TileMap* debugTileMap) {
+void GBPPU::update() {
 	// Check if PPU is enabled (bit 7 of LCDC)
 	if (!(LCDC & 128)) {
 		// PPU disabled so return early and set PPU to its inital state
@@ -437,9 +441,6 @@ void GBPPU::update(TileMap* debugTileMap) {
 				// Render image to screen
 				screen->loadFromSurface();
 				screen->render();
-
-				// Render debug tilemap
-				debugTileMap->render();
 			}
 			else {
 				// PPUMode set to 2
@@ -530,6 +531,7 @@ void GBPPU::update(TileMap* debugTileMap) {
 
 			// Clear Pixel FIFO's
 			backgroundFIFO.reset();
+			objectFIFO.reset();
 
 			// Check if window begins on this line
 			if (WY == LY) {
@@ -545,19 +547,34 @@ void GBPPU::update(TileMap* debugTileMap) {
 			++dotsOnCurrentRow;
 			--dotsToIdle;
 		}
-		// Objects are enabled only if bit 1 of LCDC is
 		else {
-			// Check if an object needs to be drawn in the current pixel column
-			for (int objIndex = 0; objIndex < currLineObjectsCount; ++objIndex) {
-				OAMEntry* currObj = &(currLineObjects[objIndex]);
-				if (!currObj->beenFetched && currObj->xPos <= pixelColumn + 8) {
-					currObj->beenFetched = true;
-					activeObj = currObj;
-
-					// Reset and pause background FIFO
+			// Check if next pixel to be drawn is inside the window
+			// Window activated by LCDC bit 5
+			if (windowActive && (LCDC & 0b00100000) && (pixelColumn >= WX - 7)) {
+				// On first pixel which this happens need to empty the FIFO
+				if (!nextPixelIsWindow) {
+					nextPixelIsWindow = true;
+					backgroundFIFO.reset();
 					backgroundFIFO.step = GET_TILE;
-					objectFIFOActive = true;
-					break;
+				}
+			}
+			else {
+				nextPixelIsWindow = false;
+			}
+			// Objects are enabled only if bit 1 of LCDC is
+			if ((LCDC & 0b00000010) && !objectFIFOActive) {
+				// Check if an object needs to be drawn in the current pixel column
+				for (int objIndex = 0; objIndex < currLineObjectsCount; ++objIndex) {
+					OAMEntry* currObj = &(currLineObjects[objIndex]);
+					if (!currObj->beenFetched && currObj->xPos <= pixelColumn + 8) {
+						currObj->beenFetched = true;
+						activeObj = currObj;
+
+						// Reset and pause background FIFO
+						backgroundFIFO.step = GET_TILE;
+						objectFIFOActive = true;
+						break;
+					}
 				}
 			}
 			// Check if need to perform a sprite fetch
@@ -577,11 +594,6 @@ void GBPPU::update(TileMap* debugTileMap) {
 					break;
 				case GET_TILE_DATA_HIGH:
 					objSetTileDataHigh();
-					++dotsOnCurrentRow;
-					dotsToIdle = 1;
-					objectFIFO.step = PUSH;
-					break;
-				case SLEEP:
 					++dotsOnCurrentRow;
 					dotsToIdle = 1;
 					objectFIFO.step = PUSH;
@@ -627,11 +639,6 @@ void GBPPU::update(TileMap* debugTileMap) {
 					break;
 				case GET_TILE_DATA_HIGH:
 					setTileDataHigh();
-					++dotsOnCurrentRow;
-					dotsToIdle = 1;
-					backgroundFIFO.step = PUSH;
-					break;
-				case SLEEP:
 					++dotsOnCurrentRow;
 					dotsToIdle = 1;
 					backgroundFIFO.step = PUSH;

@@ -21,7 +21,7 @@ public:
 	// Flag to be set if the last processed OPCode was CB (the prefix code)
 	bool nextInstructionPrefixed = false;
 
-	// To be used if an opcode needs to have its implementation split over multiple cycles/steps
+	// To be used by prefixed opcodes to have their implementation split over multiple cycles/steps
 	int OPCodeStep = 0;
 
 	// Temp variables to store byte/address between OPCode steps
@@ -70,6 +70,9 @@ public:
 
 	// Creates new CPU linked to the given memory
 	GBCPU(GBMemory* memory) :mem{ memory } {};
+
+	// Resets the CPU and all its registers to their default state
+	void reset();
 
 	// Runs one CPU cycle
 	void update();

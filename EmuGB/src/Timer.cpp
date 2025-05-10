@@ -7,6 +7,12 @@ Timer::Timer(GBMemory* mem) : mem {mem},
 							  TAC{ mem->PPURead(0xFF07) } {
 }
 
+void Timer::reset() {
+	ticks = 204;
+	prevTACBit = false;
+	TIMAOverflowed = false;
+}
+
 void Timer::update() {
 	// Check if timer needs to be reset
 	if (mem->resetTimer) {

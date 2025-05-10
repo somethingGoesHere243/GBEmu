@@ -162,6 +162,7 @@
     <ClCompile Include="src\Main.cpp" />
     <ClCompile Include="src\Memory\MBC.cpp" />
     <ClCompile Include="src\Memory\Memory.cpp" />
+    <ClCompile Include="src\MenuHandler.cpp" />
     <ClCompile Include="src\PPU\FIFO.cpp" />
     <ClCompile Include="src\PPU\PPU.cpp" />
     <ClCompile Include="src\PPU\Screen.cpp" />
@@ -175,10 +176,15 @@
     <ClInclude Include="src\Input.h" />
     <ClInclude Include="src\InterruptHandler.h" />
     <ClInclude Include="src\Memory\Memory.h" />
+    <ClInclude Include="src\MenuHandler.h" />
     <ClInclude Include="src\PPU\FIFO.h" />
+    <ClInclude Include="src\PPU\Menu.h" />
     <ClInclude Include="src\PPU\PPU.h" />
     <ClInclude Include="src\PPU\Screen.h" />
     <ClInclude Include="src\Timer.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <ResourceCompile Include="src\PPU\Menu.rc" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

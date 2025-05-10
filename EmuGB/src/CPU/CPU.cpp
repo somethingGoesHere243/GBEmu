@@ -22,6 +22,27 @@ void GBCPU::conditionalCall(address addr, bool condition) {
 	cyclesRemaining += 3;
 }
 
+void GBCPU::reset() {
+	nextInstructionPrefixed = false;
+	OPCodeStep = 0;
+	isHalted = false;
+	IME = 0;
+	instructionsBeforeIMESet = 0;
+	
+	A = 0x01;
+	F = Z_FLAG | H_FLAG | C_FLAG;
+	B = 0;
+	C = 0x13;
+	D = 0;
+	E = 0xD8;
+	H = 0x01;
+	L = 0x4D;
+	SP = 0xFFFE;
+	PC = 0x0100;
+
+	cyclesRemaining = 0;
+}
+
 void GBCPU::update() {
 	// Check if an instruction is running
 	if (cyclesRemaining == 0) {
@@ -46,12 +67,8 @@ void GBCPU::update() {
 		}
 
 		if (OPCodeStep == 0) {
-			if (PC == 0x6801) {
-				//std::cout << 1;
-			}
 			// Retrieve new OPCode
 			OPCode = mem->read(PC);
-
 			++PC;
 		}
 	}

@@ -5,15 +5,16 @@
 
 #include "Debug/TileMap.h"
 
+#include <SDL3/SDL.h>
+
 #include <iostream>
 #include <vector>
 #include <Windows.h>
 
 int main() {
-	GB* testGB = new GB;
-	TileMap debugTileMap{ &(testGB->Mem) };
+	GB* mainGB = new GB;
 
-	testGB->init();
+	mainGB->init();
 
 	// Keep Window open until closed
 	SDL_Event e;
@@ -25,16 +26,16 @@ int main() {
 				quit = true;
 			}
 			else if (e.type == SDL_EVENT_KEY_DOWN) {
-				testGB->controller.pressButton(e.key.key);
+				mainGB->controller.pressButton(e.key.key);
 			}
 			else if (e.type == SDL_EVENT_KEY_UP) {
-				testGB->controller.releaseButton(e.key.key);
+				mainGB->controller.releaseButton(e.key.key);
 			}
 		}
 
 		// Gameboy goes thru 17556 cycles per frame
 		for (int i = 0; i < 17556; ++i) {
-			testGB->update(&debugTileMap);
+			mainGB->update();
 		}
 	}
 }

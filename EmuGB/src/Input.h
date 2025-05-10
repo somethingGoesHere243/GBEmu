@@ -12,7 +12,7 @@
 // O -> B button
 // P -> A button
 // Enter Key -> Start Button
-// Right Shift -> Select Button
+// Shift -> Select Button
 
 // TODO: Allow customisable controls
 

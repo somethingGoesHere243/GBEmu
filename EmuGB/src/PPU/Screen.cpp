@@ -1,10 +1,13 @@
 #include <SDL3/SDL.h>
+
 #include<iostream>
 
+#include "../GB.h"
+#include "Menu.h"
+#include "../MenuHandler.h"
 #include "Screen.h"
 
-Screen::Screen(int width, int height, int scale, const char* windowName) : mWidth{ width }, mHeight{ height } {
-
+Screen::Screen(int width, int height, int scale, const char* windowName, bool isMainWindow) : mWidth{ width }, mHeight{ height } {
 	// Attempt to initialize SDL
 	if (SDL_Init(SDL_INIT_VIDEO) < 0) {
 		std::cout << "SDL failed to initialise. SDL Error: " << SDL_GetError() << std::endl;
@@ -12,7 +15,8 @@ Screen::Screen(int width, int height, int scale, const char* windowName) : mWidt
 	}
 
 	// Create window (of given dimensions) and renderer
-	if (!SDL_CreateWindowAndRenderer(windowName, width * scale, height * scale, 0, &mWindow, &mRenderer)) {
+	// Note: an additional 20 pixels is added to the height of the main window to account for the win32 menu bar
+	if (!SDL_CreateWindowAndRenderer(windowName, width * scale, height * scale + 20 * isMainWindow, 0, &mWindow, &mRenderer)) {
 		std::cout << "Renderer could not be created. SDL Error: " << SDL_GetError() << std::endl;
 		return;
 	}
@@ -50,6 +54,7 @@ Screen::~Screen() {
 		SDL_DestroyTexture(mTexture);
 		mTexture = nullptr;
 	}
+
 	// Destroy Surface
 	SDL_DestroySurface(mSurface);
 	mSurface = nullptr;
@@ -61,9 +66,12 @@ Screen::~Screen() {
 	// Destroy Window
 	SDL_DestroyWindow(mWindow);
 	mWindow = nullptr;
+}
 
-	// Quit SDL subsystems
-	SDL_Quit();
+void Screen::reset() {
+	for (int i = 0; i < mWidth * mHeight; ++i) {
+		editPixel(i, 155, 188, 15);
+	}
 }
 
 void Screen::loadFromSurface() {
@@ -96,7 +104,7 @@ void Screen::render() {
 	}
 	lastFrameTime = currFrameTime;
 
-	// Render to screen
+	SDL_RenderClear(mRenderer);
 	SDL_RenderTexture(mRenderer, mTexture, nullptr, &renderQuad);
 
 	// Show new frame
@@ -119,4 +127,10 @@ void Screen::editPixel(int pixelIndex, Uint8 r, Uint8 g, Uint8 b) {
 	*(Uint32*)targetPixel = newPixel;
 
 	SDL_UnlockSurface(mSurface);
+}
+
+void Screen::setRenderScale(int scale) {
+	SDL_SetWindowSize(mWindow, mWidth * scale, mHeight * scale);
+	SDL_SetRenderScale(mRenderer, scale, scale);
+	render();
 }

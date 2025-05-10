@@ -63,7 +63,7 @@ byte GBMemory::MBC1Read(address addr) {
 		return ROMBanks[ROMBank1Index].read(addr - 0x4000);
 	}
 	else {
-		// Check cartridge contains External Ram and its enabled (MBCReg1)
+		// Check cartridge contains External Ram and its enabled (MBCRegs[0])
 		if (RAMBankCount == 0 || (int)MBCRegs[0] == 0) {
 			//Return garbage
 			return 0xFF;
@@ -90,7 +90,7 @@ void GBMemory::MBC1Write(address addr, byte newVal) {
 	if (addr < 0x2000) {
 		// Any attempt to write to the range 0x0000 - 0x1FFF will enable/disable cartridge RAM
 		// A value with last 4 bits == 0xA enables RAM
-		if ((int)newVal % 0x10 == 0x0A) {
+		if (((int)newVal & 0xF ) == 0xA) {
 			MBCRegs[0] = 1;
 		}
 		else {
@@ -300,6 +300,54 @@ void GBMemory::MBC3TimerTick() {
 	if (MBCRegs[0xA] >= 32) { MBCRegs[0xA] = 0; }
 }
 
+byte GBMemory::MBC5Read(address addr) {
+	if (addr < 0x4000) {
+		return ROMBanks[0].read(addr);
+	}
+	else if (addr < 0x8000) {
+		ROMBank1Index = MBCRegs[1] + 256 * MBCRegs[2];
+
+		// ROM Bank Index cant exceed the total number of ROM Banks
+		ROMBank1Index = ROMBank1Index % ROMBankCount;
+
+		return ROMBanks[ROMBank1Index].read(addr - 0x4000);
+	}
+	else {
+		// Check cartridge contains External Ram and its enabled (MBCRegs[0])
+		if (RAMBankCount == 0 || (int)MBCRegs[0] == 0) {
+			//Return garbage
+			return 0xFF;
+		}
+		// Read new value from RAM
+		return RAMBanks[RAMBankIndex].read(addr - 0xA000);
+	}
+}
+
+void GBMemory::MBC5Write(address addr, byte newVal) {
+	if (addr < 0x2000) {
+		// Enable/disable cartridge RAM
+		// A value with last 4 bits == 0xA enables RAM
+		if (((int)newVal & 0xF) == 0xA) {
+			MBCRegs[0] = 1;
+		}
+		else if ((int)newVal == 0) {
+			MBCRegs[0] = 0;
+		}
+	}
+	else if (addr < 0x3000) {
+		// Set least significant 8 bits of ROMBank1Index
+		MBCRegs[1] = newVal;
+	}
+	else if (addr < 0x4000) {
+		// Set most significant bit (bit 8) of ROMBank1Index
+		MBCRegs[2] = newVal & 1; // 1 bit register;
+	}
+	else if (addr < 0x6000) {
+		// Sets RAMBankIndex
+		RAMBankIndex = newVal % RAMBankCount;
+	}
+}
+
 byte GBMemory::MBCRead(address addr) {
 	// Select the correct read function from above dependant on the current MBC
 	switch (MBCType) {
@@ -309,6 +357,8 @@ byte GBMemory::MBCRead(address addr) {
 		return MBC1Read(addr);
 	case MBC3:
 		return MBC3Read(addr);
+	case MBC5:
+		return MBC5Read(addr);
 	default:
 		std::cout << "MBC Type Not Yet Implemented\n";
 		return 0xFF;
@@ -326,6 +376,9 @@ void GBMemory::MBCWrite(address addr, byte newVal) {
 		break;
 	case MBC3:
 		MBC3Write(addr, newVal);
+		break;
+	case MBC5:
+		MBC5Write(addr, newVal);
 		break;
 	default:
 		std::cout << "MBC Type Not Yet Implemented\n";

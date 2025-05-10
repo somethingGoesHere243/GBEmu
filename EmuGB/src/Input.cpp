@@ -31,6 +31,7 @@ void Controller::pressButton(SDL_Keycode keyCode) {
 		startPressed = true;
 		IF = IF | 16;
 		break;
+	case SDLK_LSHIFT:
 	case SDLK_RSHIFT:
 		selectPressed = true;
 		IF = IF | 16;
@@ -61,6 +62,7 @@ void Controller::releaseButton(SDL_Keycode keyCode) {
 	case SDLK_RETURN:
 		startPressed = false;
 		break;
+	case SDLK_LSHIFT:
 	case SDLK_RSHIFT:
 		selectPressed = false;
 		break;

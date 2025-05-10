@@ -31,5 +31,8 @@ private:
 public:
 	Timer(GBMemory* mem);
 
+	// Reset timer to its default state
+	void reset();
+
 	void update();
 };

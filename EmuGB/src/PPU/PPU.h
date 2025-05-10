@@ -118,6 +118,9 @@ public:
 	// Creates new PPU linked to the given screen and memory
 	GBPPU(GBMemory* mem, Screen* screen);
 
+	// Resets the PPU to its default state
+	void reset();
+
 	// Sets the current tile in FIFO's to push pixels from
 	void setTile();
 
@@ -140,7 +143,7 @@ public:
 	// Checks if a STAT Interrupt should be triggered
 	void checkForSTATInterrupt(bool vblankStarted);
 
-	void update(TileMap* tilemap);
+	void update();
 
 	GBMemory* getMem() { return mem; }
 };

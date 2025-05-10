@@ -6,7 +6,7 @@
 // Only addresses 8000 - 9FFF and C000 - FFFF are stored on the GB itself
 using address = unsigned short;
 constexpr unsigned int VRAMSize = 0x2000; // 8000 - 9FFF
-constexpr unsigned int WRamSize = 0x2000; // C000 - DFFF
+constexpr unsigned int WRAMSize = 0x2000; // C000 - DFFF
 constexpr unsigned int OAMSize = 0x00A0; // FE00 - FE9F
 constexpr unsigned int IORegisterCount = 0x0080; // FF00 - FF7F
 constexpr unsigned int HRAMSize = 0x007F; // FF80 - FFFE
@@ -70,7 +70,7 @@ private:
 	// A000 - BFFF: 8 KiB External RAM	      (From Cartridge)
 	// C000 - CFFF: 4 KiB Work RAM
 	// D000 - DFFF: 4 KiB Work RAM            (CGB Mode have switchable banks)
-	// E000 - FDFF: Mirror of C000 - DDFF     (Use Prohibited => Not Emulated)
+	// E000 - FDFF: Mirror of C000 - DDFF     
 	// FE00 - FE9F: Object-Attribute-Memory 
 	// FEA0 - FEFF: Unused                    (Use Prohibited => Not Emulated)
 	// FF00 - FF7F: I/O Registers
@@ -78,7 +78,7 @@ private:
 	// FFFF - FFFF: Interrupt Enable Register
 
 	byte VRAM[VRAMSize]{ 0 };
-	byte WRAM[WRamSize]{ 0 };
+	byte WRAM[WRAMSize]{ 0 };
 	byte OAM[OAMSize]{ 0 };
 	byte IORegs[IORegisterCount]{ 0 };
 	byte HRAM[HRAMSize]{ 0 };
@@ -122,8 +122,11 @@ public:
 	// Flag to set when a DMA Transfer is ongoing
 	bool isDMATransfer{ false };
 
-	// Sets initial values for some hardware registers (as specified in the CGB boot rom)
+	// Resets all values in memory to their default state
 	void init();
+
+	// Sets initial values for IO registers (as specified by the boot rom)
+	void initIO();
 
 	// Loads a given ROM into memory
 	void loadROM(std::string filePath);
@@ -165,4 +168,7 @@ public:
 	byte MBC3Read(address addr);
 	void MBC3Write(address addr, byte newVal);
 	void MBC3TimerTick();
+
+	byte MBC5Read(address addr);
+	void MBC5Write(address addr, byte newVal);
 };

@@ -3,6 +3,35 @@
 #include <fstream>
 
 void GBMemory::init() {
+	// Reset all values in VRAM, WRAM, OAM, and HRAM to 0
+	for (int i = 0; i < VRAMSize; ++i) {
+		VRAM[i] = 0;
+	}
+	for (int i = 0; i < WRAMSize; ++i) {
+		WRAM[i] = 0;
+	}
+	for (int i = 0; i < OAMSize; ++i) {
+		OAM[i] = 0;
+	}
+	for (int i = 0; i < HRAMSize; ++i) {
+		HRAM[i] = 0;
+	}
+
+	// MBCRegs
+	for (int i = 0; i < maxCartRegs; ++i) {
+		MBCRegs[i] = 0;
+	}
+
+	// Reset other stored state variables
+	PPUMode = 0;
+	resetTimer = false;
+	currDMAStep = 0xA0;
+	isDMATransfer = false;
+
+	initIO();
+}
+
+void GBMemory::initIO() {
 	// All Addresses written to here are of the form $FF00 + some byte
 	// Initialise all IORegs to 0xFF
 	for (int i = 0; i < IORegisterCount; ++i) {
@@ -171,6 +200,12 @@ void GBMemory::loadROM(std::string filePath) {
 		RAMBankCount = 8;
 		break;
 	}
+
+	// Reset current MBC related state variables
+	ROMBank0Index = 0;
+	ROMBank1Index = 1;
+	RAMBankIndex = 0;
+	MBCTicks = 0;
 }
 
 byte GBMemory::read(address addr) {
@@ -210,10 +245,6 @@ byte GBMemory::read(address addr) {
 		return 0xFF;
 	}
 	else if (addr < 0xFF80) {
-		// Palettes disabled in PPUMode 3
-		if (PPUMode == 3 && (addr == 0xFF47 || addr == 0xFF48 || addr == 0xFF49)) {
-			return 0xFF;
-		}
 		return IORegs[addr - 0xFF00];
 	}
 	else if (addr < 0xFFFF) {
@@ -229,14 +260,12 @@ byte& GBMemory::PPURead(address addr) {
 		return ROMBanks[ROMBank0Index].read(addr);
 	}
 	else if (addr < 0x8000) {
-		// TODO: Switchable ROMBanks dependant on MBC
 		return ROMBanks[ROMBank1Index].read(addr - 0x4000);
 	}
 	else if (addr < 0xA000) {
 		return VRAM[addr - 0x8000];
 	}
 	else if (addr < 0xC000) {
-		// TODO: Switchable RAMBanks dependant on MBC
 		return RAMBanks[RAMBankIndex].read(addr - 0xA000);
 	}
 	else if (addr < 0xE000) {
@@ -370,14 +399,6 @@ void GBMemory::IOWrite(address addr, byte newVal) {
 		BeginDMATransfer();
 		IORegs[0x46] = newVal;
 		break;
-	case 0x47:
-	case 0x48:
-	case 0x49:
-		// Palettes disabled in PPUMode 3
-		if (PPUMode != 3) {
-			IORegs[addr] = newVal;
-		}
-		break;
 	case 0x01:
 	case 0x05:
 	case 0x06:
@@ -415,6 +436,9 @@ void GBMemory::IOWrite(address addr, byte newVal) {
 	case 0x42:
 	case 0x43:
 	case 0x45:
+	case 0x47:
+	case 0x48:
+	case 0x49:
 	case 0x4A:
 	case 0x4B:
 		IORegs[addr] = newVal;

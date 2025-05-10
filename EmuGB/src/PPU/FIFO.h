@@ -8,7 +8,6 @@ enum FIFOStep {
 	GET_TILE,
 	GET_TILE_DATA_LOW,
 	GET_TILE_DATA_HIGH,
-	SLEEP,
 	PUSH,
 };
 
