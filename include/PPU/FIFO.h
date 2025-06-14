@@ -4,6 +4,13 @@
 using byte = uint8_t;
 using address = unsigned short;
 
+// Each pixel in the FIFO must maintain 3 properties
+struct Pixel {
+	int colourIndex;
+	byte palette;
+	bool priority;
+};
+
 enum FIFOStep {
 	GET_TILE,
 	GET_TILE_DATA_LOW,
@@ -14,7 +21,7 @@ enum FIFOStep {
 class FIFO {
 public:
 	// FIFO can store up to 16 pixels (each represented by 2 bits);
-	int pixels[16];
+	Pixel pixels[16];
 
 	// Keep track of current number of pixels being stored
 	int pixelCount{ 0 };
@@ -32,6 +39,6 @@ public:
 	// Next action FIFO needs to perform when updated
 	FIFOStep step{ GET_TILE };
 
-	int popPixel();
+	Pixel popPixel();
 	void reset();
 };

@@ -1,19 +1,20 @@
 #include "PPU/PPU.h"
 #include "windows.h"
 
-GBPPU::GBPPU(GBMemory* mem, Screen* screen) : mem{ mem }, 
-											  screen{ screen }, 
-											  LCDC{mem->PPURead(0xFF40)},
-											  STAT{mem->PPURead(0xFF41)},
-											  SCY{ mem->PPURead(0xFF42) },
-											  SCX{ mem->PPURead(0xFF43) },
-											  LY{mem->PPURead(0xFF44)},
-											  LYC{ mem->PPURead(0xFF45) },
-											  BGP{ mem->PPURead(0xFF47) },
-											  OBP0{ mem->PPURead(0xFF48) },
-											  OBP1{ mem->PPURead(0xFF49) },
-											  WY{ mem->PPURead(0xFF4A) },
-											  WX{mem->PPURead(0xFF4B)} {}
+GBPPU::GBPPU(GBMemory* mem, Screen* screen, GBAPU* APU) : mem{ mem }, 
+														  screen{ screen },
+														  APU{ APU },
+														  LCDC{mem->PPURead(0xFF40)},
+														  STAT{mem->PPURead(0xFF41)},
+					  									  SCY{ mem->PPURead(0xFF42) },
+														  SCX{ mem->PPURead(0xFF43) },
+														  LY{mem->PPURead(0xFF44)},
+														  LYC{ mem->PPURead(0xFF45) },
+														  BGP{ mem->PPURead(0xFF47) },
+														  OBP0{ mem->PPURead(0xFF48) },
+														  OBP1{ mem->PPURead(0xFF49) },
+														  WY{ mem->PPURead(0xFF4A) },
+														  WX{mem->PPURead(0xFF4B)} {}
 
 void GBPPU::reset() {
 	pixelColumn = 0;
@@ -149,7 +150,7 @@ bool GBPPU::pushPixels() {
 		bool leastSigBit = backgroundFIFO.currTileDataLow & (1 << i);
 		bool mostSigBit = backgroundFIFO.currTileDataHigh & (1 << i);
 
-		backgroundFIFO.pixels[backgroundFIFO.pixelCount] = 2 * mostSigBit + leastSigBit;
+		backgroundFIFO.pixels[backgroundFIFO.pixelCount].colourIndex = 2 * mostSigBit + leastSigBit;
 		++backgroundFIFO.pixelCount;
 	}
 	++backgroundFIFO.xPos;
@@ -231,17 +232,30 @@ bool GBPPU::objPushPixels() {
 			bool leastSigBit = objectFIFO.currTileDataLow & (1 << currPixelIndex);
 			bool mostSigBit = objectFIFO.currTileDataHigh & (1 << currPixelIndex);
 
-			objectFIFO.pixels[objectFIFO.pixelCount] = 2 * mostSigBit + leastSigBit;
+			objectFIFO.pixels[objectFIFO.pixelCount].colourIndex = 2 * mostSigBit + leastSigBit;
+
+			// Object palette comes from bit 4 of Attributes
+			objectFIFO.pixels[objectFIFO.pixelCount].palette = (activeObj->Attributes & 0b00010000) ? OBP1 : OBP0;
+
+			// Object priority comes from bit 7 of Attributes
+			objectFIFO.pixels[objectFIFO.pixelCount].priority = activeObj->Attributes & 0b10000000;
+
 			++objectFIFO.pixelCount;
 		}
-		else if (objectFIFO.pixels[i] == 0) {
+		else if (objectFIFO.pixels[i].colourIndex == 0) {
 			// If a transparent pixel is currently in the FIFO it can be overwritten with an opaque one
 			int currPixelIndex = (flipX) ? i : 7 - i;
 
 			bool leastSigBit = objectFIFO.currTileDataLow & (1 << currPixelIndex);
 			bool mostSigBit = objectFIFO.currTileDataHigh & (1 << currPixelIndex);
 
-			objectFIFO.pixels[i] = 2 * mostSigBit + leastSigBit;
+			objectFIFO.pixels[i].colourIndex = 2 * mostSigBit + leastSigBit;
+
+			// Object palette comes from bit 4 of Attributes
+			objectFIFO.pixels[i].palette = (activeObj->Attributes & 0b00010000) ? OBP1 : OBP0;
+
+			// Object priority comes from bit 7 of Attributes
+			objectFIFO.pixels[i].priority = activeObj->Attributes & 0b10000000;
 		}
 	}
 	++objectFIFO.xPos;
@@ -252,10 +266,10 @@ void GBPPU::drawPixel() {
 	// If there are at least 8 pixels in the FIFO we can draw pixels to the screen
 	// Cant draw whilst an object is being fetched
 	if (backgroundFIFO.pixelCount > 8 && !objectFIFOActive) {
-		int backgroundPixel = backgroundFIFO.popPixel();
+		Pixel backgroundPixel = backgroundFIFO.popPixel();
 
 		// Convert backgroundPixel to a colour via the background palette
-		int backgroundColour = colourFromPalette(backgroundPixel, BGP);
+		int backgroundColour = colourFromPalette(backgroundPixel.colourIndex, BGP);
 
 		// Check if pixel should be discarded
 		if (!nextPixelIsWindow && discardedPixelsThisRow < SCX % 8) {
@@ -266,20 +280,12 @@ void GBPPU::drawPixel() {
 		// Check if objectFIFO contains a pixel
 		// Only attempt to draw object if bit 1 of LCDC is on
 		if ((LCDC & 2) && objectFIFO.pixelCount > 0) {
-			int objectPixel = objectFIFO.popPixel();
-			int objectColour;
-			// Check object palette (bit 4 of the attributes)
-			if (activeObj->Attributes & 0b00010000) {
-				objectColour = colourFromPalette(objectPixel, OBP1);
-			}
-			else {
-				objectColour = colourFromPalette(objectPixel, OBP0);
-			}
+			Pixel objectPixel = objectFIFO.popPixel();
+			int objectColour = colourFromPalette(objectPixel.colourIndex, objectPixel.palette);
 
 			// Mix with background pixel
-			bool backgroundPriority = activeObj->Attributes & 128; //7th Bit
-				if (objectPixel != 0 &&
-					(!backgroundPriority || backgroundColour == 0)) {
+				if (objectPixel.colourIndex != 0 &&
+					(!objectPixel.priority || backgroundColour == 0)) {
 					backgroundColour = objectColour;
 			}
 		}
@@ -357,7 +363,6 @@ void GBPPU::update() {
 		dotsOnCurrentRow = 4;
 		discardedPixelsThisRow = 0;
 		dotsToIdle = 0;
-		isSTATInterrupt = false;
 		justTurnedOn = true;
 
 		currWindowY = 0;
@@ -369,7 +374,6 @@ void GBPPU::update() {
 
 		// Unset STAT sources for PPUModes 1 and 2
 		activeSTATSources = activeSTATSources & ~0b00110000;
-		checkForSTATInterrupt(false);
 
 		return;
 	}
@@ -379,13 +383,13 @@ void GBPPU::update() {
 		STAT = STAT | 4;
 		// Set bit 6 of the STAT sources
 		activeSTATSources = activeSTATSources | 0b01000000;
-		checkForSTATInterrupt(false);
 	}
 	else {
 		STAT = STAT - (STAT & 4);
 		// Unset bit 6 of the STAT sources
 		activeSTATSources = activeSTATSources & ~0b01000000;
 	}
+	checkForSTATInterrupt(false);
 
 	// Check if PPU has just been enabled (Enters a HBlank for 76 dots)
 	if (justTurnedOn) {
@@ -486,9 +490,10 @@ void GBPPU::update() {
 			windowActive = false;
 			nextPixelIsWindow = false;
 
-
 			// Reset dots counter
 			dotsOnCurrentRow = 0;
+
+			APU->pushToStream();
 		}
 	}
 

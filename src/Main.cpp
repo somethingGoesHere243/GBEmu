@@ -32,10 +32,12 @@ int main() {
 				mainGB->controller.releaseButton(e.key.key);
 			}
 		}
-
-		// Gameboy goes thru 17556 cycles per frame
-		for (int i = 0; i < 17556; ++i) {
-			mainGB->update();
+		// Check if a ROM is loaded
+		if (mainGB->ROMLoaded) {
+			// Gameboy goes thru 17556 cycles per frame
+			for (int i = 0; i < 17556; ++i) {
+				mainGB->update();
+			}
 		}
 	}
 }

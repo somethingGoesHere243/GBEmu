@@ -1,10 +1,9 @@
 #include "InterruptHandler.h"
 
-InterruptHandler::InterruptHandler(GBCPU* CPU, GBPPU* PPU, GBMemory* mem) : CPU{ CPU }, 
-																			PPU{ PPU }, 
-																			IE{ mem->PPURead(0xFFFF) },
-																			IF{ mem->PPURead(0xFF0F) }
-																			{
+InterruptHandler::InterruptHandler(GBCPU* CPU, GBMemory* mem) : CPU{ CPU }, 
+																IE{ mem->PPURead(0xFFFF) },
+																IF{ mem->PPURead(0xFF0F) }
+																{
 };
 
 void InterruptHandler::update() {
@@ -19,56 +18,50 @@ void InterruptHandler::update() {
 			IF -= 1;
 
 			// Perform an unconditional call to the interrupt handler address 
-			CPU->conditionalCall(0x0040, 1);
+			CPU->interruptStart(0x0040);
 			CPU->OPCode = 0;
 			CPU->OPCodeStep = 0;
-
-			// An additional 2 cycles are spent in a wait state
-			CPU->cyclesRemaining += 2;
 		}
 		else if ((IE & 2) && (IF & 2)) {
 			// LCD Interrupt
 			CPU->IME = 0;
 			IF -= 2;
 
-			CPU->conditionalCall(0x0048, 1);
+			CPU->interruptStart(0x0048);
 			CPU->OPCode = 0;
 			CPU->OPCodeStep = 0;
-
-			CPU->cyclesRemaining += 2;
 		}
 		else if ((IE & 4) && (IF & 4)) {
 			// Timer Interrupt
 			CPU->IME = 0;
 			IF -= 4;
 
-			CPU->conditionalCall(0x0050, 1);
+			CPU->interruptStart(0x0050);
 			CPU->OPCode = 0;
 			CPU->OPCodeStep = 0;
-
-			CPU->cyclesRemaining += 2;
 		}
 		else if ((IE & 8) && (IF & 8)) {
 			// Serial Interrupt
 			CPU->IME = 0;
 			IF -= 8;
 
-			CPU->conditionalCall(0x0058, 1);
+			CPU->interruptStart(0x0058);
 			CPU->OPCode = 0;
 			CPU->OPCodeStep = 0;
-
-			CPU->cyclesRemaining += 2;
 		}
 		else if ((IE & 16) && (IF & 16)) {
 			// Joypad Interrupt
 			CPU->IME = 0;
 			IF -= 16;
 
-			CPU->conditionalCall(0x0060, 1);
+			CPU->interruptStart(0x0060);
 			CPU->OPCode = 0;
 			CPU->OPCodeStep = 0;
-
-			CPU->cyclesRemaining += 2;
 		}
+	}
+
+	if (CPU->instructionsBeforeIMESet > 0) {
+		CPU->IME = 1;
+		CPU->instructionsBeforeIMESet = 0;
 	}
 }

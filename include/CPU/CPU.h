@@ -83,9 +83,6 @@ public:
 
 	void processPrefixedOPCode(); // Process codes which were preceded by the CB OPCode
 
-	// Push the PC onto the stack then sets the PC to the given address. If the given condition is met
-	void conditionalCall(address addr, bool condition);
-
 	// Rotates the bits of an 8 bit register to the left not passing through the carry
 	void RLC(byte& reg);
 
@@ -115,6 +112,13 @@ public:
 
 	// Sets the given bit of the given register to the given value
 	void setBit(byte& reg, int bitNum, bool bitValue);
+
+	// Begins the function called by interrupt handler
+	bool interrupted{ false };
+	void interruptStart(address addr);
+
+	// Handles the function called by interrupt handler
+	void interruptCall();
 
 	// Declare functions for all OPCodes (Prefixed and Unprefixed)
 	            void x01(); void x02(); void x03(); void x04(); void x05(); void x06(); void x07(); void x08(); void x09(); void x0A(); void x0B(); void x0C(); void x0D(); void x0E(); void x0F();

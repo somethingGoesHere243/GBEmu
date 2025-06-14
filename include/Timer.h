@@ -1,16 +1,18 @@
 #pragma once
 #include "Memory/Memory.h"
 #include "CPU/CPU.h"
+#include "InterruptHandler.h"
 
 class Timer {
 private:
 	GBMemory* mem;
 
 	// Internal clock of the timer (increments once every CPU cycle)
-	byte ticks{ 204 };
+	address ticks{ 51 };
 
 	// Divider Register: Incremented once every 64 ticks
 	byte& DIV; // Address FF04
+	byte& prevDivVal;
 
 	// Timer Counter: Increments at the rate given by TAC
 	byte& TIMA; // Address FF05

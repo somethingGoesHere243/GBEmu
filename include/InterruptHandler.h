@@ -1,13 +1,10 @@
 #pragma once
 #include "Memory/Memory.h"
 #include "CPU/CPU.h"
-#include "PPU/PPU.h"
 
 class InterruptHandler {
 private:
 	GBCPU* CPU;
-
-	GBPPU* PPU;
 
 	// Interrupt Enable register
 	// Controls which interrupt handler functions can be called:
@@ -22,7 +19,7 @@ private:
 	// Controls which interrupt handlers are attempted to be called: (same bit -> interrupt correspondance as above)
 	byte& IF; // Address FF0F
 public:
-	InterruptHandler(GBCPU* CPU, GBPPU* PPU, GBMemory* mem);
+	InterruptHandler(GBCPU* CPU, GBMemory* mem);
 
 	// Handle interrupts
 	void update();

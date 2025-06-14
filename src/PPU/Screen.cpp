@@ -9,7 +9,7 @@
 
 Screen::Screen(int width, int height, int scale, const char* windowName, bool isMainWindow) : mWidth{ width }, mHeight{ height } {
 	// Attempt to initialize SDL
-	if (SDL_Init(SDL_INIT_VIDEO) < 0) {
+	if (!SDL_Init(SDL_INIT_VIDEO)) {
 		std::cout << "SDL failed to initialise. SDL Error: " << SDL_GetError() << std::endl;
 		return;
 	}
@@ -94,13 +94,13 @@ void Screen::loadFromSurface() {
 
 void Screen::render() {
 	// Set rendering space
-	SDL_FRect renderQuad{ 0, 0, mWidth, mHeight };
+	SDL_FRect renderQuad{ 0.0, 0.0, mWidth, mHeight };
 
-	int currFrameTime = SDL_GetTicks();
+	Uint64 currFrameTime = SDL_GetTicksNS();
 	// Aiming for 60FPS 
-	constexpr int desiredFrameTime = 1000 / 60;
+	constexpr int desiredFrameTime = 1000000000 / 60;
 	while (currFrameTime - lastFrameTime < desiredFrameTime) {
-		currFrameTime = SDL_GetTicks();
+		currFrameTime = SDL_GetTicksNS();
 	}
 	lastFrameTime = currFrameTime;
 

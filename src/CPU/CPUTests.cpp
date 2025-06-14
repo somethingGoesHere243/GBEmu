@@ -109,7 +109,7 @@ int runTest(std::string OPCode, GBCPU& cpu) {
 	int numberFailed = 0;
 	int numberPassed = 0;
 
-	std::ifstream f("src/CPU/CPUTests/" + OPCode + ".json");
+	std::ifstream f("../src/CPU/CPUTests/" + OPCode + ".json");
 	nlohmann::json testData = nlohmann::json::parse(f);
 	std::cout << "Testing OPCode: " << OPCode << std::endl;
 	for (nlohmann::json test : testData) {

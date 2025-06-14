@@ -2,6 +2,8 @@
 #include <stdint.h>
 #include <iostream>
 
+#include "APU/APU.h"
+
 // GB Memory consists of memory addressed from 0000 to FFFF (2^16-1)
 // Only addresses 8000 - 9FFF and C000 - FFFF are stored on the GB itself
 using address = unsigned short;
@@ -109,9 +111,17 @@ private:
 	// MBC's with timers built in need to keep track of their ticks
 	int MBCTicks{ 0 };
 
+	// Need to be linked to APU in order to write to its registers
+	GBAPU* APU;
+
 public:
+	GBMemory(GBAPU* APU) : APU{ APU } {};
+
 	// Current Mode of the PPU can lock certain parts of memory
 	int PPUMode{ 0 }; // Mode is 0, 1, 2, or 3
+
+	// Lot of timing depends on how the DIV register (address: FF04) changes
+	byte prevDivVal{ 0 };
 
 	// Flag to set whenever DIV register (0xFF04) is written to so that timer can be reset
 	bool resetTimer{ false };

@@ -20,7 +20,7 @@ private:
 	int mHeight;
 
 	// Store time at which last frame was drawn
-	int lastFrameTime = 0;
+	Uint64 lastFrameTime = 0;
 
 public:
 	// Constructor to set up all member variables and initialise SDL

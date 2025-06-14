@@ -1,5 +1,6 @@
 #pragma once
 #include "../Memory/Memory.h"
+#include "../APU/APU.h"
 #include "Screen.h"
 #include "FIFO.h"
 
@@ -35,6 +36,9 @@ private:
 
 	// Screen connected to PPU
 	Screen* screen;
+
+	// APU connect to PPU
+	GBAPU* APU;
 
 	// Column of next pixel to be drawn
 	int pixelColumn{ 0 };
@@ -116,7 +120,7 @@ private:
 
 public:	
 	// Creates new PPU linked to the given screen and memory
-	GBPPU(GBMemory* mem, Screen* screen);
+	GBPPU(GBMemory* mem, Screen* screen, GBAPU* APU);
 
 	// Resets the PPU to its default state
 	void reset();

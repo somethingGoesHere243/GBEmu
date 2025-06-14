@@ -1,6 +1,10 @@
 #include "CPU/CPU.h"
 
 void GBCPU::processUnprefixedOPCode() {
+	if (interrupted) {
+		interruptCall();
+		return;
+	}
 	switch (OPCode) {
 	case 0x00:
 		// NO OP
@@ -742,7 +746,7 @@ void GBCPU::processUnprefixedOPCode() {
 		break;
 	default:
 		cyclesRemaining = 1;
-		std::cout << "UNDEFINED OPCODES: " << OPCode << std::endl;
+		std::cout << "UNDEFINED OPCODES: " << OPCode << " PC: " << PC - 1 << std::endl;
 	}
 }
 
@@ -822,7 +826,7 @@ void GBCPU::x07() {
 	cyclesRemaining = 1;
 	bool carryFlag = A & 0b10000000;
 
-	A = (A << 1) | carryFlag;
+	A = (A << 1) | (int)carryFlag;
 	F = carryFlag * C_FLAG;
 }
 
@@ -1022,7 +1026,7 @@ void GBCPU::x17() {
 	bool oldCarryFlag = F & C_FLAG;
 	bool carryFlag = A & 0b10000000;
 
-	A = (A << 1) | oldCarryFlag;
+	A = (A << 1) | (int)oldCarryFlag;
 	F = carryFlag * C_FLAG;
 }
 
@@ -2465,7 +2469,7 @@ void GBCPU::x9F() {
 	bool halfCarryFlag = oldCarry;
 	bool carryFlag = oldCarry;
 
-	A = -oldCarry;
+	A = -(int)oldCarry;
 	bool zeroFlag = (A == 0);
 
 	F = zeroFlag * Z_FLAG + N_FLAG + carryFlag * C_FLAG + halfCarryFlag * H_FLAG;
@@ -3734,5 +3738,21 @@ void GBCPU::xFF() {
 		--SP;
 		mem->write(SP, PC & 0xFF);
 		PC = 0x38;
+	}
+}
+
+void GBCPU::interruptCall() {
+	switch (cyclesRemaining) {
+	case 3:
+		--SP;
+		mem->write(SP, PC >> 8);
+		break;
+	case 2:
+		--SP;
+		mem->write(SP, PC & 0xFF);
+		break;
+	case 1:
+		PC = tempAddress;
+		interrupted = false;
 	}
 }

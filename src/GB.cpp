@@ -11,23 +11,22 @@ void GB::update() {
 	CPU.update();
 
 	Mem.update();
-
-	// Check for interrupts
 	interruptHandler.update();
 
 	// PPU updates 4 times for each CPU Update
 	PPU.update();
-	timer.update();
+	APU.update();
 	PPU.update();
-	timer.update();
+	APU.update();
 	PPU.update();
-	timer.update();
+	APU.update();
 	PPU.update();
+	APU.update();
+
 	timer.update();
 
 	// Update inputs
 	controller.update(&Mem);
-
 	
 }
 
@@ -49,12 +48,14 @@ void GB::reset() {
 	Mem.init();
 
 	CPU.reset();
+	APU.reset();
 	PPU.reset();
 	timer.reset();
 	screen.reset();
 }
 
 void GB::loadROM(std::string filePath) {
+	ROMLoaded = true;
 	reset();
 
 	Mem.loadROM(filePath);

@@ -245,6 +245,9 @@ byte GBMemory::read(address addr) {
 		return 0xFF;
 	}
 	else if (addr < 0xFF80) {
+		if (addr >= 0xFF10 && addr < 0xFF40) {
+			return APU->read(addr);
+		}
 		return IORegs[addr - 0xFF00];
 	}
 	else if (addr < 0xFFFF) {
@@ -330,9 +333,16 @@ void GBMemory::write(address addr, byte newVal) {
 		return;
 	}
 	else if (addr < 0xFF80) {
+		if (addr >= 0xFF10 && addr < 0xFF40) {
+			APU->write(addr, newVal);
+			return;
+		}
 		IOWrite(addr - 0xFF00, newVal);
 	}
 	else if (addr < 0xFFFF) {
+		if (addr > 0xFFF0) {
+			int i = 1;
+		}
 		HRAM[addr - 0xFF80] = newVal;
 	}
 	else {
@@ -363,30 +373,6 @@ void GBMemory::IOWrite(address addr, byte newVal) {
 	case 0x0F:
 		// 3 most sig. bits of IF register are hardcoded to 1
 		IORegs[0x0F] = newVal | 0b11100000;
-		break;
-	case 0x10:
-		// Only bits 0 - 6 of the NR10 register can be written to by the cpu
-		IORegs[0x10] = (IORegs[0x10] & 0b10000000) + (newVal & 0b01111111);
-		break;
-	case 0x1A:
-		// Only bit 7 of the NR30 register can be written to by the cpu
-		IORegs[0x1A] = (IORegs[0x1A] & 0b01111111) + (newVal & 0b100000000);
-		break;
-	case 0x1C:
-		// Only bit 5 & 6 of the NR32 register can be written to by the cpu
-		IORegs[0x1C] = (IORegs[0x1C] & 0b10011111) + (newVal & 0b01100000);
-		break;
-	case 0x20:
-		// Only bits 0 - 5 of the NR41 register can be written to by the cpu
-		IORegs[0x20] = (IORegs[0x20] & 0b11000000) + (newVal & 0b00111111);
-		break;
-	case 0x23:
-		// Only bits 6 & 7 of the NR44 register can be written to by the cpu
-		IORegs[0x23] = (IORegs[0x23] & 0b00111111) + (newVal & 0b11000000);
-		break;
-	case 0x26:
-		// Only bits 0-3 & 7 of the NR52 register can be written to by the cpu
-		IORegs[0x26] = (IORegs[0x26] & 0b01110000) + (newVal & 0b10001111);
 		break;
 	case 0x41:
 		// Only bits 3 - 6 of the STAT register can be written to by the cpu
@@ -443,7 +429,7 @@ void GBMemory::IOWrite(address addr, byte newVal) {
 	case 0x4B:
 		IORegs[addr] = newVal;
 		break;
-	// Otherwise have an unmapped registers
+	// Otherwise have an unmapped register
 	}
 }
 
@@ -457,6 +443,14 @@ void GBMemory::update() {
 	if (MBCType == 3) {
 		MBC3TimerTick();
 	}
+
+	// Check if APU Frame sequencer should be ticked
+	// i.e if bit 5 of DIV has gone from 1 to 0
+	byte DIV = IORegs[0x04];
+	if (!(DIV & 0b00010000) && (prevDivVal & 0b00010000)) {
+		APU->tickFrameSequencer();
+	}
+	prevDivVal = DIV;
 }
 
 // TODO: OAM DMA bus conflicts (https://github.com/Gekkio/mooneye-gb/issues/39)

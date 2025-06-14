@@ -166,6 +166,10 @@ byte GBMemory::MBC3Read(address addr) {
 			// Unlatched
 			return MBCRegs[MBCRegs[1]];
 		}
+		else {
+			// Return Garbage
+			return 0xFF;
+		}
 	}
 }
 

@@ -2,6 +2,7 @@
 #include <Windows.h>
 #include <SDL3/SDL.h>
 
+#include "APU/APU.h"
 #include "CPU/CPU.h"
 #include "PPU/Screen.h"
 #include "PPU/PPU.h"
@@ -15,11 +16,13 @@ class GB {
 private:
 	Screen screen{ 160, 144, 2, "GBEmu", true};
 
-	GBPPU PPU{ &Mem, &screen };
+	GBAPU APU{};
+
+	GBPPU PPU{ &Mem, &screen, &APU };
 
 	GBCPU CPU{ &Mem };
 
-	InterruptHandler interruptHandler{ &CPU, &PPU, &Mem };
+	InterruptHandler interruptHandler{ &CPU, &Mem };
 
 	Timer timer{ &Mem };
 
@@ -28,7 +31,9 @@ private:
 public:
 	Controller controller{ &Mem };
 
-	GBMemory Mem;
+	GBMemory Mem{ &APU };
+
+	bool ROMLoaded{ false };
 
 	~GB();
 
